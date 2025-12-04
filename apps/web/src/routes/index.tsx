@@ -61,6 +61,12 @@ function HomeComponent() {
 						console.log(imageData);
 					}}
 				/>
+				<HeadshotSelector
+					username="Mud Akudama"
+					onComplete={(imageData) => {
+						console.log(imageData);
+					}}
+				/>
 			</div>
 		</div>
 	);

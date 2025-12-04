@@ -1,6 +1,11 @@
 import { api } from "@GroupScape/backend/convex/_generated/api";
-import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
-import { Canvas, useThree } from "@react-three/fiber";
+import { OrbitControls, PerspectiveCamera, useCursor } from "@react-three/drei";
+import {
+	Canvas,
+	type ThreeEvent,
+	useFrame,
+	useThree,
+} from "@react-three/fiber";
 import { useAction } from "convex/react";
 import {
 	Suspense,
@@ -85,17 +90,168 @@ function Model({ base64Data }: { base64Data: string }) {
 	);
 }
 
+function PetModel({
+	base64Data,
+	position,
+	onPositionChange,
+	onDragChange,
+}: {
+	base64Data: string;
+	position: [number, number, number];
+	onPositionChange: (position: [number, number, number]) => void;
+	onDragChange: (isDragging: boolean) => void;
+}) {
+	const meshRef = useRef<THREE.Mesh>(null);
+	const [geometry, setGeometry] = useState<BufferGeometry | null>(null);
+	const [hovered, setHovered] = useState(false);
+	const [isDragging, setIsDragging] = useState(false);
+	const raycaster = useRef<THREE.Raycaster>(new THREE.Raycaster());
+	const mouse = useRef<THREE.Vector2>(new THREE.Vector2());
+	const { camera, gl } = useThree();
+
+	useCursor(hovered || isDragging);
+
+	useEffect(() => {
+		if (!base64Data) return;
+
+		// Decode base64 PLY data
+		const binaryString = atob(base64Data);
+		const bytes = new Uint8Array(binaryString.length);
+		for (let i = 0; i < binaryString.length; i++) {
+			bytes[i] = binaryString.charCodeAt(i);
+		}
+
+		// Create a blob and load it with PLYLoader
+		const blob = new Blob([bytes], { type: "application/octet-stream" });
+		const url = URL.createObjectURL(blob);
+
+		const loader = new PLYLoader();
+		loader.load(
+			url,
+			(loadedGeometry: BufferGeometry) => {
+				// Center and scale the geometry (smaller scale for pet)
+				loadedGeometry.computeVertexNormals();
+				const box = new THREE.Box3().setFromBufferAttribute(
+					loadedGeometry.attributes.position as THREE.BufferAttribute,
+				);
+				const center = box.getCenter(new THREE.Vector3());
+				const size = box.getSize(new THREE.Vector3());
+				const maxDim = Math.max(size.x, size.y, size.z);
+				const scale = 1.5 / maxDim; // Slightly smaller than player
+
+				// Center the geometry
+				loadedGeometry.translate(-center.x, -center.y, -center.z);
+				// Scale to fit in view
+				loadedGeometry.scale(scale, scale, scale);
+
+				// Apply initial rotation (same as player model)
+				const euler = new THREE.Euler(-1.55, 0, 0.1);
+				const quaternion = new THREE.Quaternion().setFromEuler(euler);
+				loadedGeometry.applyQuaternion(quaternion);
+
+				setGeometry(loadedGeometry);
+				URL.revokeObjectURL(url);
+			},
+			undefined,
+			(error: unknown) => {
+				console.error("Error loading pet PLY:", error);
+				URL.revokeObjectURL(url);
+			},
+		);
+	}, [base64Data]);
+
+	const handlePointerDown = (e: ThreeEvent<PointerEvent>) => {
+		e.stopPropagation();
+		setIsDragging(true);
+		onDragChange(true);
+		gl.domElement.style.cursor = "grabbing";
+	};
+
+	const handlePointerUp = () => {
+		setIsDragging(false);
+		onDragChange(false);
+		gl.domElement.style.cursor = "";
+	};
+
+	useFrame((state) => {
+		if (!isDragging || !meshRef.current) return;
+
+		// Use pointer position directly (already in normalized device coordinates)
+		mouse.current.set(state.pointer.x, state.pointer.y);
+
+		// Create ray from camera through mouse position
+		raycaster.current.setFromCamera(mouse.current, camera);
+
+		// Intersect with the drag plane (Y = position[1])
+		const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -position[1]);
+		const intersection = new THREE.Vector3();
+		raycaster.current.ray.intersectPlane(plane, intersection);
+
+		if (intersection) {
+			// Update position (only X and Z, keep Y fixed)
+			const newPosition: [number, number, number] = [
+				intersection.x,
+				position[1],
+				intersection.z,
+			];
+			onPositionChange(newPosition);
+			meshRef.current.position.set(...newPosition);
+		}
+	});
+
+	useEffect(() => {
+		if (meshRef.current) {
+			meshRef.current.position.set(...position);
+		}
+	}, [position]);
+
+	if (!geometry) {
+		return null;
+	}
+
+	return (
+		<mesh
+			ref={meshRef}
+			geometry={geometry}
+			position={position}
+			onPointerOver={() => setHovered(true)}
+			onPointerOut={() => setHovered(false)}
+			onPointerDown={handlePointerDown}
+			onPointerUp={handlePointerUp}
+			onPointerMove={(e) => {
+				if (isDragging) {
+					e.stopPropagation();
+				}
+			}}
+		>
+			<meshStandardMaterial
+				vertexColors
+				side={THREE.DoubleSide}
+				flatShading={false}
+				emissive={hovered || isDragging ? "#ffffff" : "#000000"}
+				emissiveIntensity={hovered || isDragging ? 0.3 : 0}
+			/>
+		</mesh>
+	);
+}
+
 interface SceneHandle {
 	capture: () => string | null;
 }
 
 const Scene = ({
 	base64Data,
+	petBase64Data,
 	captureRef,
 }: {
 	base64Data: string;
+	petBase64Data: string | null;
 	captureRef: React.RefObject<SceneHandle | null>;
 }) => {
+	const [petPosition, setPetPosition] = useState<[number, number, number]>([
+		0, 0, -2.5,
+	]);
+	const [isPetDragging, setIsPetDragging] = useState(false);
 	const cameraRef = useRef<THREE.PerspectiveCamera>(null);
 	const controlsRef = useRef<React.ElementRef<typeof OrbitControls>>(null);
 	const { gl } = useThree();
@@ -110,25 +266,29 @@ const Scene = ({
 				const canvas = gl.domElement;
 				if (!canvas) return null;
 
-				// Viewfinder size: h-64 w-64 = 256px x 256px
-				const viewfinderSize = 256;
-				const canvasWidth = canvas.width;
-				const canvasHeight = canvas.height;
+				// Get display size and device pixel ratio
+				const displayWidth = canvas.clientWidth;
+				const pixelRatio = canvas.width / displayWidth;
 
-				// Calculate center position
-				const centerX = canvasWidth / 2;
-				const centerY = canvasHeight / 2;
+				// Viewfinder size in CSS pixels: h-64 w-64 = 256px x 256px
+				const viewfinderSizeCSS = 256;
+				// Convert to actual canvas pixels
+				const viewfinderSize = viewfinderSizeCSS * pixelRatio;
+
+				// Calculate center position in canvas pixels
+				const centerX = canvas.width / 2;
+				const centerY = canvas.height / 2;
 				const halfSize = viewfinderSize / 2;
 
-				// Create a new canvas for the square crop
+				// Create a new canvas for the square crop (use CSS size for output)
 				const croppedCanvas = document.createElement("canvas");
-				croppedCanvas.width = viewfinderSize;
-				croppedCanvas.height = viewfinderSize;
+				croppedCanvas.width = viewfinderSizeCSS;
+				croppedCanvas.height = viewfinderSizeCSS;
 				const ctx = croppedCanvas.getContext("2d");
 				if (!ctx) return null;
 
 				// Draw the source canvas centered in the cropped canvas
-				// Calculate source rectangle (centered on canvas)
+				// Calculate source rectangle (centered on canvas, in canvas pixels)
 				const sourceX = centerX - halfSize;
 				const sourceY = centerY - halfSize;
 
@@ -140,8 +300,8 @@ const Scene = ({
 					viewfinderSize,
 					0,
 					0,
-					viewfinderSize,
-					viewfinderSize,
+					viewfinderSizeCSS,
+					viewfinderSizeCSS,
 				);
 
 				// Return the cropped square image
@@ -177,6 +337,7 @@ const Scene = ({
 				dampingFactor={0.05}
 				minDistance={2}
 				maxDistance={10}
+				enabled={!isPetDragging}
 				mouseButtons={{
 					LEFT: THREE.MOUSE.PAN,
 					MIDDLE: THREE.MOUSE.DOLLY,
@@ -184,6 +345,14 @@ const Scene = ({
 				}}
 			/>
 			<Model base64Data={base64Data} />
+			{petBase64Data && (
+				<PetModel
+					base64Data={petBase64Data}
+					position={petPosition}
+					onPositionChange={setPetPosition}
+					onDragChange={setIsPetDragging}
+				/>
+			)}
 		</>
 	);
 };
@@ -194,6 +363,7 @@ export default function HeadshotSelector({
 }: HeadshotSelectorProps) {
 	const getModel = useAction(api.player.getModelFromRuneProfile);
 	const [modelData, setModelData] = useState<string | null>(null);
+	const [petModelData, setPetModelData] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [isCapturing, setIsCapturing] = useState(false);
@@ -203,6 +373,7 @@ export default function HeadshotSelector({
 		getModel({ username })
 			.then((data) => {
 				setModelData(data.playerModelBase64);
+				setPetModelData(data.petModelBase64 || null);
 				setLoading(false);
 			})
 			.catch((err) => {
@@ -256,7 +427,11 @@ export default function HeadshotSelector({
 			<div className="relative h-[600px] w-full overflow-hidden rounded-lg border bg-black">
 				<Canvas gl={{ preserveDrawingBuffer: true }} className="h-full w-full">
 					<Suspense fallback={null}>
-						<Scene base64Data={modelData} captureRef={captureRef} />
+						<Scene
+							base64Data={modelData}
+							petBase64Data={petModelData}
+							captureRef={captureRef}
+						/>
 					</Suspense>
 				</Canvas>
 
