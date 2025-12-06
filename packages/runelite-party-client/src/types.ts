@@ -14,9 +14,7 @@ export interface Join {
 }
 
 /** Part message (c->s): Request to leave the current party */
-export interface Part {
-	// Empty message
-}
+export type Part = Record<string, never>;
 
 /** Data message (c->s): Send data to the party */
 export interface Data {

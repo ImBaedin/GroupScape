@@ -4,15 +4,13 @@
  */
 
 import {
-	type C2S,
-	decodeS2C,
-	encodeC2S,
-	type PartyData,
-	type S2C,
-	type UserJoin,
-	type UserPart,
-} from "./protobuf.js";
-import type { Data, Join, Part } from "./types.js";
+	buildDataMessage,
+	buildJoinMessage,
+	buildPartMessage,
+	encodeC2SMessage,
+	readS2CMessage,
+} from "./party-messages.js";
+import type { PartyData, S2C, UserJoin, UserPart } from "./types.js";
 import {
 	generateMemberId,
 	generateSessionId,
@@ -158,7 +156,7 @@ export class RuneLitePartyClient {
 					}
 				};
 
-				this.ws.onerror = (error) => {
+				this.ws.onerror = (_error) => {
 					this.setState(ConnectionState.ERROR);
 					const errorObj = new Error("WebSocket error occurred");
 					this.callbacks.onError?.(errorObj);
@@ -236,8 +234,7 @@ export class RuneLitePartyClient {
 		this.currentPartyId = partyId;
 		this.currentMemberId = memberId;
 
-		const joinMessage: Join = { partyId, memberId };
-		const c2s: C2S = { msgCase: "join", join: joinMessage };
+		const c2s = buildJoinMessage(partyId, memberId);
 		await this.sendC2S(c2s);
 	}
 
@@ -279,8 +276,7 @@ export class RuneLitePartyClient {
 			return;
 		}
 
-		const partMessage: Part = {};
-		const c2s: C2S = { msgCase: "part", part: partMessage };
+		const c2s = buildPartMessage();
 		await this.sendC2S(c2s);
 
 		this.currentPartyId = null;
@@ -295,21 +291,38 @@ export class RuneLitePartyClient {
 			throw new Error("Not connected to server. Call connect() first.");
 		}
 
-		const dataMessage: Data = { type, data };
-		const c2s: C2S = { msgCase: "data", data: dataMessage };
+		const c2s = buildDataMessage(type, data);
+		await this.sendC2S(c2s);
+	}
+
+	/**
+	 * Send a UserSync message to request all clients to send their updates
+	 *
+	 * TODO: FIX THIS
+	 * This likely isn't working, as we don't get updates after sending this message.
+	 */
+	async sendUserSync(): Promise<void> {
+		if (!this.isConnected()) {
+			throw new Error("Not connected to server. Call connect() first.");
+		}
+
+		// UserSync is sent as a Data message with type "UserSync" and empty data
+		const c2s = buildDataMessage("UserSync", new Uint8Array(0));
 		await this.sendC2S(c2s);
 	}
 
 	/**
 	 * Send a C2S message
 	 */
-	private async sendC2S(message: C2S): Promise<void> {
+	private async sendC2S(
+		message: Parameters<typeof encodeC2SMessage>[0],
+	): Promise<void> {
 		if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
 			throw new Error("WebSocket is not open");
 		}
 
 		try {
-			const encoded = await encodeC2S(message);
+			const encoded = await encodeC2SMessage(message);
 			this.ws.send(encoded);
 		} catch (error) {
 			const err =
@@ -324,10 +337,24 @@ export class RuneLitePartyClient {
 	 */
 	private async handleMessage(data: Uint8Array): Promise<void> {
 		try {
-			const s2c: S2C = await decodeS2C(data);
+			const s2c: S2C = await readS2CMessage(data);
 
 			switch (s2c.msgCase) {
 				case "join":
+					// Check if this is our own join event (successful connection to party)
+					if (
+						this.currentMemberId !== null &&
+						s2c.join.memberId === this.currentMemberId
+					) {
+						// Send UserSync to request all clients to send their updates
+						this.sendUserSync().catch((error) => {
+							this.callbacks.onError?.(
+								error instanceof Error
+									? error
+									: new Error("Failed to send UserSync"),
+							);
+						});
+					}
 					this.callbacks.onUserJoin?.(s2c.join);
 					break;
 				case "part":

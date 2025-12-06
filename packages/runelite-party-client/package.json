@@ -10,7 +10,9 @@
 		"test": "bun run test.ts"
 	},
 	"dependencies": {
-		"protobufjs": "^7.3.0"
+		"long": "^5.2.3",
+		"protobufjs": "^7.3.0",
+		"zod": "^3.23.8"
 	},
 	"devDependencies": {
 		"@GroupScape/config": "workspace:*",
