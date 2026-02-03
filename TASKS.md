@@ -186,7 +186,7 @@ Acceptance:
 
 **Frontend: Auth Bootstrap**
 
-- [ ] Task F1: Call `users.getOrCreate` on auth
+- [x] Task F1: Call `users.getOrCreate` on auth
 Skills: (no skill required)
 Summary: Ensure users exist before any other mutations.
 Primary files: `apps/web/src/main.tsx` or `apps/web/src/routes/__root.tsx` or `apps/web/src/routes/dashboard.tsx`
@@ -239,7 +239,7 @@ Acceptance:
 
 **Frontend: Parties**
 
-- [ ] Task F5: Simplify create party form
+- [x] Task F5: Simplify create party form
 Skills: $frontend-design
 Summary: Replace structured selection with free-text fields.
 Primary files: `apps/web/src/components/create-party-form.tsx`

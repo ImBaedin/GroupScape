@@ -4,6 +4,7 @@ import {
 	Outlet,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
+import AuthBootstrap from "@/components/auth-bootstrap";
 import Header from "@/components/header";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
@@ -42,8 +43,8 @@ function RootComponent() {
 				disableTransitionOnChange
 				storageKey="vite-ui-theme"
 			>
+				<AuthBootstrap />
 				<div className="grid h-svh grid-rows-[auto_1fr]">
-					<Header />
 					<Outlet />
 				</div>
 				<Toaster richColors />

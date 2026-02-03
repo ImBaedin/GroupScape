@@ -113,6 +113,14 @@ body {
 	--sidebar-accent-foreground: oklch(0.216 0.006 56.043);
 	--sidebar-border: oklch(0.923 0.003 48.717);
 	--sidebar-ring: oklch(0.709 0.01 56.259);
+	--rs-paper: oklch(0.98 0.01 92);
+	--rs-paper-deep: oklch(0.9 0.03 65);
+	--rs-ink: oklch(0.32 0.08 54);
+	--rs-ink-muted: oklch(0.45 0.08 62);
+	--rs-gold: oklch(0.8 0.12 78);
+	--rs-gold-deep: oklch(0.7 0.15 55);
+	--rs-border: oklch(0.78 0.08 65);
+	--rs-glow: oklch(0.8 0.05 70 / 0.6);
 }
 
 .dark {
@@ -147,6 +155,14 @@ body {
 	--sidebar-accent-foreground: oklch(0.985 0.001 106.423);
 	--sidebar-border: oklch(1 0 0 / 10%);
 	--sidebar-ring: oklch(0.553 0.013 58.071);
+	--rs-paper: oklch(0.2 0.03 50);
+	--rs-paper-deep: oklch(0.15 0.03 40);
+	--rs-ink: oklch(0.93 0.02 80);
+	--rs-ink-muted: oklch(0.7 0.04 70);
+	--rs-gold: oklch(0.78 0.12 78);
+	--rs-gold-deep: oklch(0.65 0.14 55);
+	--rs-border: oklch(0.45 0.08 55);
+	--rs-glow: oklch(0.4 0.1 60 / 0.5);
 }
 
 @layer base {
@@ -164,4 +180,222 @@ body {
 
 body {
 	position: relative;
+}
+
+.runescape-landing {
+	position: relative;
+	isolation: isolate;
+	background:
+		radial-gradient(circle at top left, color-mix(in oklch, var(--rs-paper) 80%, transparent) 0%, transparent 55%),
+		radial-gradient(circle at 20% 20%, color-mix(in oklch, var(--rs-gold) 40%, transparent) 0%, transparent 60%),
+		linear-gradient(160deg, var(--rs-paper), var(--rs-paper-deep));
+}
+
+.runescape-landing::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background:
+		linear-gradient(
+			90deg,
+			color-mix(in oklch, var(--rs-gold) 30%, transparent) 1px,
+			transparent 1px
+		),
+		linear-gradient(
+			180deg,
+			color-mix(in oklch, var(--rs-paper) 70%, transparent) 1px,
+			transparent 1px
+		),
+		linear-gradient(
+			135deg,
+			color-mix(in oklch, var(--rs-gold) 25%, transparent) 0%,
+			color-mix(in oklch, var(--rs-paper) 70%, transparent) 45%,
+			color-mix(in oklch, var(--rs-gold-deep) 30%, transparent) 100%
+		);
+	background-size: 90px 90px, 90px 90px, 100% 100%;
+	mix-blend-mode: multiply;
+	opacity: 0.45;
+	pointer-events: none;
+}
+
+.runescape-hero {
+	position: relative;
+	z-index: 1;
+}
+
+.runescape-eyebrow {
+	font-size: 0.7rem;
+	font-weight: 700;
+	letter-spacing: 0.4em;
+	text-transform: uppercase;
+	color: var(--rs-ink-muted);
+}
+
+.runescape-title {
+	font-family: "rsbold", "Public Sans", system-ui, sans-serif;
+	color: var(--rs-ink);
+	text-shadow: 0 10px 40px var(--rs-glow);
+}
+
+.runescape-lede {
+	max-width: 34rem;
+}
+
+.runescape-button {
+	border-radius: 999px;
+	padding: 0.75rem 1.6rem;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	background: linear-gradient(140deg, var(--rs-gold), var(--rs-gold-deep));
+	color: color-mix(in oklch, var(--rs-ink) 90%, #000);
+	box-shadow:
+		0 16px 40px oklch(0.4 0.15 50 / 0.25),
+		inset 0 1px 0 oklch(1 0 0 / 0.5);
+	transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.runescape-button:hover {
+	transform: translateY(-1px) scale(1.01);
+	box-shadow:
+		0 18px 50px oklch(0.4 0.15 50 / 0.35),
+		inset 0 1px 0 oklch(1 0 0 / 0.6);
+}
+
+.runescape-button-secondary {
+	background: linear-gradient(135deg, var(--rs-paper), var(--rs-paper-deep));
+	color: var(--rs-ink);
+	border: 1px solid var(--rs-border);
+}
+
+.runescape-button-primary {
+	white-space: nowrap;
+}
+
+.runescape-search {
+	border-radius: 24px;
+	padding: 1.25rem;
+	background: color-mix(in oklch, var(--rs-paper) 70%, transparent);
+	backdrop-filter: blur(8px);
+	box-shadow:
+		0 20px 60px oklch(0.4 0.12 50 / 0.2),
+		inset 0 0 0 1px color-mix(in oklch, var(--rs-border) 70%, transparent);
+}
+
+.runescape-input {
+	flex: 1;
+	min-width: 220px;
+	border-radius: 999px;
+	border: 1px solid var(--rs-border);
+	background: color-mix(in oklch, var(--rs-paper) 85%, transparent);
+	padding: 0.7rem 1.2rem;
+	font-size: 0.95rem;
+	color: var(--rs-ink);
+}
+
+.runescape-input::placeholder {
+	color: var(--rs-ink-muted);
+}
+
+.runescape-panel {
+	border-radius: 28px;
+	padding: 2rem;
+	background:
+		linear-gradient(160deg, var(--rs-paper), var(--rs-paper-deep));
+	border: 1px solid var(--rs-border);
+	box-shadow: 0 30px 80px oklch(0.35 0.12 50 / 0.2);
+}
+
+.runescape-panel-title {
+	font-family: "rsbold", "Public Sans", system-ui, sans-serif;
+	color: var(--rs-ink);
+}
+
+.runescape-panel-header {
+	border-bottom: 1px solid color-mix(in oklch, var(--rs-border) 75%, transparent);
+	padding-bottom: 1rem;
+}
+
+.runescape-stat {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 0.75rem 1rem;
+	border-radius: 16px;
+	background: color-mix(in oklch, var(--rs-paper) 90%, transparent);
+	border: 1px solid color-mix(in oklch, var(--rs-border) 80%, transparent);
+}
+
+.runescape-stat-label {
+	font-size: 0.75rem;
+	text-transform: uppercase;
+	letter-spacing: 0.2em;
+	color: var(--rs-ink-muted);
+}
+
+.runescape-stat-value {
+	font-size: 1.4rem;
+	font-weight: 700;
+	color: var(--rs-ink);
+}
+
+.runescape-divider {
+	height: 1px;
+	background: linear-gradient(
+		90deg,
+		transparent,
+		color-mix(in oklch, var(--rs-gold) 60%, transparent),
+		transparent
+	);
+}
+
+.runescape-card {
+	border-radius: 24px;
+	padding: 1.5rem;
+	background: color-mix(in oklch, var(--rs-paper) 75%, transparent);
+	border: 1px solid color-mix(in oklch, var(--rs-border) 70%, transparent);
+	box-shadow: 0 18px 50px oklch(0.35 0.12 50 / 0.15);
+	animation: runescape-rise 0.7s ease forwards;
+}
+
+.runescape-card-title {
+	font-family: "rsbold", "Public Sans", system-ui, sans-serif;
+	color: var(--rs-ink);
+	margin-bottom: 0.5rem;
+}
+
+.runescape-footer {
+	display: flex;
+	flex-direction: column;
+	gap: 1.5rem;
+	border-radius: 28px;
+	padding: 2rem;
+	background: linear-gradient(
+		135deg,
+		color-mix(in oklch, var(--rs-paper) 85%, transparent),
+		color-mix(in oklch, var(--rs-paper-deep) 90%, transparent)
+	);
+	border: 1px solid var(--rs-border);
+	box-shadow: 0 20px 60px oklch(0.35 0.12 50 / 0.2);
+}
+
+.runescape-footer-title {
+	font-family: "rsbold", "Public Sans", system-ui, sans-serif;
+	color: var(--rs-ink);
+}
+
+.runescape-footer-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 1rem;
+}
+
+@keyframes runescape-rise {
+	from {
+		opacity: 0;
+		transform: translateY(16px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
 }
