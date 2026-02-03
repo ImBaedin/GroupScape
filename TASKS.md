@@ -28,7 +28,7 @@ Acceptance:
 1. Schema matches the data used by new party and verification functions.
 2. No schema fields remain for structured content or filters.
 
-- [ ] Task B2: Add indexes for parties and account lookups
+- [x] Task B2: Add indexes for parties and account lookups
 Skills: $convex-schema-validator, $convex-best-practices
 Summary: Add minimal indexes to support list and owner queries.
 Primary files: `packages/backend/convex/schema.ts`
@@ -135,7 +135,7 @@ Acceptance:
 
 **Backend: Parties + Join Flow**
 
-- [ ] Task B10: Update `parties.create` to free-text
+- [x] Task B10: Update `parties.create` to free-text
 Skills: $convex-functions
 Summary: Remove structured fields and accept only name/description/size.
 Primary files: `packages/backend/convex/parties.ts`, `packages/backend/convex/schema.ts`

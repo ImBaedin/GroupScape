@@ -15,17 +15,6 @@ const verificationChallenge = v.object({
 	issuedAt: v.number(),
 });
 
-const partyFilter = v.union(
-	v.object({ type: v.literal("killCount"), value: v.number() }),
-	v.object({ type: v.literal("totalLevel"), value: v.number() }),
-	v.object({ type: v.literal("combatLevel"), value: v.number() }),
-	v.object({
-		type: v.literal("specificLevel"),
-		skill: v.string(),
-		value: v.number(),
-	}),
-);
-
 export default defineSchema({
 	todos: defineTable({
 		text: v.string(),
@@ -90,12 +79,11 @@ export default defineSchema({
 
 		name: v.string(),
 		description: v.optional(v.string()),
-		contentName: v.string(),
 		partySizeLimit: v.number(),
-		filters: v.array(partyFilter),
-		scheduledTime: v.optional(v.number()),
 		status: v.optional(partyStatus),
 		createdAt: v.optional(v.number()),
 		updatedAt: v.optional(v.number()),
-	}),
+	})
+		.index("by_status_and_createdAt", ["status", "createdAt"])
+		.index("by_ownerId", ["ownerId"]),
 });

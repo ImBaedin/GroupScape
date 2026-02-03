@@ -1,5 +1,6 @@
 import { ConvexError, v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { mutation, query } from "./_generated/server";
 
 const verificationStatusValidator = v.union(
@@ -29,7 +30,9 @@ const playerAccountValidator = v.object({
 
 const normalizeUsername = (username: string) => username.trim();
 
-const requireUser = async (ctx: any) => {
+type AuthedCtx = QueryCtx | MutationCtx;
+
+const requireUser = async (ctx: AuthedCtx) => {
 	const identity = await ctx.auth.getUserIdentity();
 	if (identity === null) {
 		throw new ConvexError("Not authenticated");
