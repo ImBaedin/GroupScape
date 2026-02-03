@@ -81,7 +81,7 @@ Acceptance:
 
 **Backend: Verification (Predictable XP Delta)**
 
-- [ ] Task B6: Create curated verification action list
+- [x] Task B6: Create curated verification action list
 Skills: $convex-functions
 Summary: Hardcode predictable, deterministic actions with XP thresholds.
 Primary files: `packages/backend/convex` (new file `verificationActions.ts` or inside `playerAccounts.ts`)
