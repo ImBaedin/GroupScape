@@ -93,7 +93,7 @@ Steps:
 Acceptance:
 1. Action list can be filtered by player skill levels.
 
-- [ ] Task B7: Start verification
+- [x] Task B7: Start verification
 Skills: $convex-functions
 Summary: Choose an eligible action and store a verification challenge.
 Primary files: `packages/backend/convex/playerAccounts.ts` or `packages/backend/convex/verification.ts`

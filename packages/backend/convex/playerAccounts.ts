@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
-import { mutation, query } from "./_generated/server";
+import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 
 const verificationStatusValidator = v.union(
 	v.literal("unverified"),
@@ -26,6 +26,12 @@ const playerAccountValidator = v.object({
 	verificationStatus: v.optional(verificationStatusValidator),
 	verificationChallenge: v.optional(verificationChallengeValidator),
 	lastVerifiedAt: v.optional(v.number()),
+});
+
+const playerAccountVerificationInfoValidator = v.object({
+	_id: v.id("playerAccounts"),
+	username: v.string(),
+	verificationStatus: v.optional(verificationStatusValidator),
 });
 
 const normalizeUsername = (username: string) => username.trim();
@@ -67,6 +73,63 @@ export const list = query({
 		return accounts.filter(
 			(account): account is Doc<"playerAccounts"> => account !== null,
 		);
+	},
+});
+
+export const getForVerification = internalQuery({
+	args: {
+		accountId: v.id("playerAccounts"),
+	},
+	returns: playerAccountVerificationInfoValidator,
+	handler: async (ctx, args) => {
+		const user = await requireUser(ctx);
+		const account = await ctx.db.get(args.accountId);
+
+		if (!account) {
+			throw new ConvexError("Account not found");
+		}
+
+		if (account.userId !== user._id) {
+			throw new ConvexError("Not authorized to access this account");
+		}
+
+		return {
+			_id: account._id,
+			username: account.username,
+			verificationStatus: account.verificationStatus,
+		};
+	},
+});
+
+export const setVerificationChallenge = internalMutation({
+	args: {
+		accountId: v.id("playerAccounts"),
+		challenge: verificationChallengeValidator,
+	},
+	returns: playerAccountValidator,
+	handler: async (ctx, args) => {
+		const user = await requireUser(ctx);
+		const account = await ctx.db.get(args.accountId);
+
+		if (!account) {
+			throw new ConvexError("Account not found");
+		}
+
+		if (account.userId !== user._id) {
+			throw new ConvexError("Not authorized to update this account");
+		}
+
+		await ctx.db.patch(args.accountId, {
+			verificationStatus: "pending",
+			verificationChallenge: args.challenge,
+		});
+
+		const updated = await ctx.db.get(args.accountId);
+		if (!updated) {
+			throw new ConvexError("Account not found");
+		}
+
+		return updated;
 	},
 });
 

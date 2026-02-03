@@ -1,14 +1,14 @@
 "use node";
 
 import { v } from "convex/values";
-import { getStatsByGamemode, parseJsonStats } from "osrs-json-hiscores";
 import { action } from "./_generated/server";
+import { getStatsByGamemode } from "./osrsHiscores";
 
 export const getModelFromRuneProfile = action({
 	args: {
 		username: v.string(),
 	},
-	handler: async (ctx, args) => {
+	handler: async (_ctx, args) => {
 		const res = await fetch(
 			`https://api.runeprofile.com/profiles/models/${args.username}?pet=true`,
 		);
@@ -21,7 +21,7 @@ export const getHiscores = action({
 	args: {
 		username: v.string(),
 	},
-	handler: async (ctx, args) => {
+	handler: async (_ctx, args) => {
 		const hiscores = await getStatsByGamemode(args.username);
 
 		return hiscores;

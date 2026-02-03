@@ -16,7 +16,6 @@
 		"@convex-dev/better-auth": "catalog:",
 		"better-auth": "catalog:",
 		"convex": "catalog:",
-		"osrs-json-hiscores": "^2.24.0",
 		"zod": "^4.1.13"
 	}
 }

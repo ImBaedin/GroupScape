@@ -49,12 +49,12 @@ export default defineSchema({
 	 * Player account stats table
 	 *
 	 * This stores the CSV of hiscores stats for a player account.
-	 * Parse with `parseJsonStats` from `osrs-json-hiscores`.
+	 * Parse with `parseJsonStats` from `osrsHiscores`.
 	 */
 	playerAccountStats: defineTable({
 		playerAccountId: v.id("playerAccounts"),
 		/**
-		 * CSV of hiscores stats. Parse with `parseJsonStats` from `osrs-json-hiscores`.
+		 * CSV of hiscores stats. Parse with `parseJsonStats` from `osrsHiscores`.
 		 */
 		stats: v.string(),
 		/**
