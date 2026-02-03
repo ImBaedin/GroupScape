@@ -2,6 +2,7 @@ import {
 	createRootRouteWithContext,
 	HeadContent,
 	Outlet,
+	useRouterState,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import AuthBootstrap from "@/components/auth-bootstrap";
@@ -34,6 +35,11 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
 });
 
 function RootComponent() {
+	const pathname = useRouterState({
+		select: (state) => state.location.pathname,
+	});
+	const showHeader = !pathname.startsWith("/auth");
+
 	return (
 		<>
 			<HeadContent />
@@ -45,6 +51,7 @@ function RootComponent() {
 			>
 				<AuthBootstrap />
 				<div className="grid min-h-svh grid-rows-[auto_1fr]">
+					{showHeader ? <Header /> : null}
 					<Outlet />
 				</div>
 				<Toaster richColors />

@@ -1,28 +1,42 @@
 import { Link } from "@tanstack/react-router";
+import ProfileBadge from "@/components/profile-badge";
 import { ModeToggle } from "./mode-toggle";
 
 export default function Header() {
-	const links = [{ to: "/", label: "Home" }] as const;
+	const links = [
+		{ to: "/", label: "Home" },
+		{ to: "/parties", label: "Parties" },
+		{ to: "/party-tracker", label: "Party Tracker" },
+	] as const;
 
 	return (
-		<div className="p-4">
-			<div className="flex flex-row items-center justify-between bg-[url(/ui/background.png)] p-2 [border-image:url(/ui/border.png)_9_9/9px_stretch] dark:bg-[url(/ui/background-dark.png)] dark:[border-image:url(/ui/border-dark.png)_9_9/9px_stretch]">
-				<div className="flex items-center gap-2">
-					<img src="/logo.png" alt="GroupScape" className="h-16" />
-				</div>
-				<nav className="flex gap-4 text-lg">
+		<header className="app-header">
+			<div className="app-header-inner">
+				<Link to="/" className="app-brand">
+					<img
+						src="/logo.png"
+						alt="GroupScape"
+						className="h-10 w-10 rounded-full border border-border/60"
+					/>
+					<div>
+						<p className="app-brand-title">GroupScape</p>
+						<p className="app-brand-sub">Party Sync Network</p>
+					</div>
+				</Link>
+				<nav className="app-nav">
 					{links.map(({ to, label }) => {
 						return (
-							<Link key={to} to={to}>
+							<Link key={to} to={to} className="app-nav-link">
 								{label}
 							</Link>
 						);
 					})}
 				</nav>
-				<div className="mr-4 flex items-center gap-2">
+				<div className="app-actions">
+					<ProfileBadge />
 					<ModeToggle />
 				</div>
 			</div>
-		</div>
+		</header>
 	);
 }

@@ -3,17 +3,24 @@ import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import z from "zod";
 import { authClient } from "@/lib/auth-client";
+import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 
 export default function SignInForm({
 	onSwitchToSignUp,
+	className,
+	title = "Welcome Back",
+	description = "Rejoin your party roster and sync up in seconds.",
 }: {
 	onSwitchToSignUp: () => void;
+	className?: string;
+	title?: string;
+	description?: string;
 }) {
 	const navigate = useNavigate({
-		from: "/",
+		from: "/auth",
 	});
 
 	const form = useForm({
@@ -30,7 +37,7 @@ export default function SignInForm({
 				{
 					onSuccess: () => {
 						navigate({
-							to: "/dashboard",
+							to: "/parties",
 						});
 						toast.success("Sign in successful");
 					},
@@ -49,8 +56,11 @@ export default function SignInForm({
 	});
 
 	return (
-		<div className="mx-auto mt-10 w-full max-w-md p-6">
-			<h1 className="mb-6 text-center font-bold text-3xl">Welcome Back</h1>
+		<div className={cn("auth-form", className)}>
+			<div className="auth-form-header">
+				<h1 className="auth-form-title">{title}</h1>
+				<p className="auth-form-subtitle">{description}</p>
+			</div>
 
 			<form
 				onSubmit={(e) => {
@@ -58,13 +68,15 @@ export default function SignInForm({
 					e.stopPropagation();
 					form.handleSubmit();
 				}}
-				className="space-y-4"
+				className="auth-form-body"
 			>
 				<div>
 					<form.Field name="email">
 						{(field) => (
 							<div className="space-y-2">
-								<Label htmlFor={field.name}>Email</Label>
+								<Label className="auth-label" htmlFor={field.name}>
+									Email
+								</Label>
 								<Input
 									id={field.name}
 									name={field.name}
@@ -72,9 +84,10 @@ export default function SignInForm({
 									value={field.state.value}
 									onBlur={field.handleBlur}
 									onChange={(e) => field.handleChange(e.target.value)}
+									className="auth-input"
 								/>
 								{field.state.meta.errors.map((error) => (
-									<p key={error?.message} className="text-red-500">
+									<p key={error?.message} className="auth-error">
 										{error?.message}
 									</p>
 								))}
@@ -87,7 +100,9 @@ export default function SignInForm({
 					<form.Field name="password">
 						{(field) => (
 							<div className="space-y-2">
-								<Label htmlFor={field.name}>Password</Label>
+								<Label className="auth-label" htmlFor={field.name}>
+									Password
+								</Label>
 								<Input
 									id={field.name}
 									name={field.name}
@@ -95,9 +110,10 @@ export default function SignInForm({
 									value={field.state.value}
 									onBlur={field.handleBlur}
 									onChange={(e) => field.handleChange(e.target.value)}
+									className="auth-input"
 								/>
 								{field.state.meta.errors.map((error) => (
-									<p key={error?.message} className="text-red-500">
+									<p key={error?.message} className="auth-error">
 										{error?.message}
 									</p>
 								))}
@@ -110,7 +126,7 @@ export default function SignInForm({
 					{(state) => (
 						<Button
 							type="submit"
-							className="w-full"
+							className="auth-submit"
 							disabled={!state.canSubmit || state.isSubmitting}
 						>
 							{state.isSubmitting ? "Submitting..." : "Sign In"}
@@ -119,11 +135,11 @@ export default function SignInForm({
 				</form.Subscribe>
 			</form>
 
-			<div className="mt-4 text-center">
+			<div className="auth-form-footer">
 				<Button
 					variant="link"
 					onClick={onSwitchToSignUp}
-					className="text-indigo-600 hover:text-indigo-800"
+					className="auth-link"
 				>
 					Need an account? Sign Up
 				</Button>

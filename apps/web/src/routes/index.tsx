@@ -33,10 +33,10 @@ function HomeComponent() {
 						</div>
 					</div>
 					<div className="flex flex-wrap items-center gap-3">
-						<a className="guild-button guild-button-ghost" href="#">
+						<a className="guild-button guild-button-ghost" href="/auth">
 							Sign In
 						</a>
-						<a className="guild-button" href="#">
+						<a className="guild-button" href="/auth?mode=sign-up">
 							Sign Up
 						</a>
 					</div>
@@ -57,12 +57,12 @@ function HomeComponent() {
 							<a className="guild-button guild-button-primary" href="#">
 								Download RuneLite Plugin
 							</a>
-							<Button
-								variant="secondary"
+							<a
 								className="guild-button guild-button-secondary"
+								href="/parties"
 							>
 								Create a Party
-							</Button>
+							</a>
 						</div>
 
 						<Card className="guild-search">
@@ -185,7 +185,9 @@ function HomeComponent() {
 						>
 							Start a Party
 						</Button>
-						<Button className="guild-button">Explore Parties</Button>
+						<a className="guild-button" href="/parties">
+							Explore Parties
+						</a>
 					</div>
 				</section>
 			</div>

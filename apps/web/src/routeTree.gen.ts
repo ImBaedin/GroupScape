@@ -11,7 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TodosRouteImport } from './routes/todos'
 import { Route as PartyTrackerRouteImport } from './routes/party-tracker'
-import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as PartiesRouteImport } from './routes/parties'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
 
 const TodosRoute = TodosRouteImport.update({
@@ -24,9 +25,14 @@ const PartyTrackerRoute = PartyTrackerRouteImport.update({
   path: '/party-tracker',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
+const PartiesRoute = PartiesRouteImport.update({
+  id: '/parties',
+  path: '/parties',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -37,34 +43,38 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/dashboard': typeof DashboardRoute
+  '/auth': typeof AuthRoute
+  '/parties': typeof PartiesRoute
   '/party-tracker': typeof PartyTrackerRoute
   '/todos': typeof TodosRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/dashboard': typeof DashboardRoute
+  '/auth': typeof AuthRoute
+  '/parties': typeof PartiesRoute
   '/party-tracker': typeof PartyTrackerRoute
   '/todos': typeof TodosRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/dashboard': typeof DashboardRoute
+  '/auth': typeof AuthRoute
+  '/parties': typeof PartiesRoute
   '/party-tracker': typeof PartyTrackerRoute
   '/todos': typeof TodosRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/dashboard' | '/party-tracker' | '/todos'
+  fullPaths: '/' | '/auth' | '/parties' | '/party-tracker' | '/todos'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard' | '/party-tracker' | '/todos'
-  id: '__root__' | '/' | '/dashboard' | '/party-tracker' | '/todos'
+  to: '/' | '/auth' | '/parties' | '/party-tracker' | '/todos'
+  id: '__root__' | '/' | '/auth' | '/parties' | '/party-tracker' | '/todos'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  DashboardRoute: typeof DashboardRoute
+  AuthRoute: typeof AuthRoute
+  PartiesRoute: typeof PartiesRoute
   PartyTrackerRoute: typeof PartyTrackerRoute
   TodosRoute: typeof TodosRoute
 }
@@ -85,11 +95,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PartyTrackerRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteImport
+    '/parties': {
+      id: '/parties'
+      path: '/parties'
+      fullPath: '/parties'
+      preLoaderRoute: typeof PartiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -104,7 +121,8 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  DashboardRoute: DashboardRoute,
+  AuthRoute: AuthRoute,
+  PartiesRoute: PartiesRoute,
   PartyTrackerRoute: PartyTrackerRoute,
   TodosRoute: TodosRoute,
 }

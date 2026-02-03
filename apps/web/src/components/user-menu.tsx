@@ -4,6 +4,7 @@ import { useQuery } from "convex/react";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
+	DropdownMenuGroup,
 	DropdownMenuItem,
 	DropdownMenuLabel,
 	DropdownMenuSeparator,
@@ -19,16 +20,19 @@ export default function UserMenu() {
 
 	return (
 		<DropdownMenu>
-			<DropdownMenuTrigger
-				type="button"
-				className={cn(buttonVariants({ variant: "outline" }))}
-			>
-				{user?.name ?? "Account"}
-			</DropdownMenuTrigger>
-			<DropdownMenuContent className="bg-card">
+		<DropdownMenuTrigger
+			type="button"
+			className={cn(buttonVariants({ variant: "outline" }))}
+		>
+			{user?.name ?? "Account"}
+		</DropdownMenuTrigger>
+		<DropdownMenuContent className="bg-card">
+			<DropdownMenuGroup>
 				<DropdownMenuLabel>My Account</DropdownMenuLabel>
-				<DropdownMenuSeparator />
 				<DropdownMenuItem>{user?.email}</DropdownMenuItem>
+			</DropdownMenuGroup>
+			<DropdownMenuSeparator />
+			<DropdownMenuGroup>
 				<DropdownMenuItem
 					variant="destructive"
 					onClick={() => {
@@ -36,7 +40,7 @@ export default function UserMenu() {
 							fetchOptions: {
 								onSuccess: () => {
 									navigate({
-										to: "/dashboard",
+										to: "/auth",
 									});
 								},
 							},
@@ -45,7 +49,8 @@ export default function UserMenu() {
 				>
 					Sign Out
 				</DropdownMenuItem>
-			</DropdownMenuContent>
-		</DropdownMenu>
+			</DropdownMenuGroup>
+		</DropdownMenuContent>
+	</DropdownMenu>
 	);
 }
