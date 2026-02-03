@@ -43,8 +43,8 @@ export default function ProfileBadge() {
 	const initials = getInitials(user?.name, user?.email);
 
 	return (
-	<DropdownMenu>
-		<DropdownMenuTrigger className="profile-badge" type="button">
+		<DropdownMenu>
+			<DropdownMenuTrigger className="profile-badge" type="button">
 				<span className="profile-avatar">
 					{user?.image ? (
 						<img src={user.image} alt={name} />
@@ -56,30 +56,41 @@ export default function ProfileBadge() {
 					<span className="profile-name">{name}</span>
 					<span className="profile-email">{email}</span>
 				</span>
-		</DropdownMenuTrigger>
-		<DropdownMenuContent className="profile-menu" align="end">
-			<DropdownMenuGroup>
-				<DropdownMenuLabel>Signed in</DropdownMenuLabel>
-				<DropdownMenuItem disabled>{email}</DropdownMenuItem>
-			</DropdownMenuGroup>
-			<DropdownMenuSeparator />
-			<DropdownMenuGroup>
-				<DropdownMenuItem
-					variant="destructive"
-					onClick={() => {
-						authClient.signOut({
-							fetchOptions: {
-								onSuccess: () => {
-									navigate({ to: "/auth" });
+			</DropdownMenuTrigger>
+			<DropdownMenuContent className="profile-menu" align="end">
+				<DropdownMenuGroup>
+					<DropdownMenuLabel>Signed in</DropdownMenuLabel>
+					<DropdownMenuItem disabled>{email}</DropdownMenuItem>
+				</DropdownMenuGroup>
+				<DropdownMenuSeparator />
+				<DropdownMenuGroup>
+					<DropdownMenuLabel>Account</DropdownMenuLabel>
+					<DropdownMenuItem
+						onClick={() => {
+							navigate({ to: "/profile" });
+						}}
+					>
+						Profile
+					</DropdownMenuItem>
+				</DropdownMenuGroup>
+				<DropdownMenuSeparator />
+				<DropdownMenuGroup>
+					<DropdownMenuItem
+						variant="destructive"
+						onClick={() => {
+							authClient.signOut({
+								fetchOptions: {
+									onSuccess: () => {
+										navigate({ to: "/auth" });
+									},
 								},
-							},
-						});
-					}}
-				>
-					Sign Out
-				</DropdownMenuItem>
-			</DropdownMenuGroup>
-		</DropdownMenuContent>
-	</DropdownMenu>
+							});
+						}}
+					>
+						Sign Out
+					</DropdownMenuItem>
+				</DropdownMenuGroup>
+			</DropdownMenuContent>
+		</DropdownMenu>
 	);
 }

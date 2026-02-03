@@ -199,7 +199,7 @@ Acceptance:
 
 **Frontend: Profile + Accounts**
 
-- [ ] Task F2: Profile screen for accounts
+- [x] Task F2: Profile screen for accounts
 Skills: $frontend-design
 Summary: Add a profile page to manage player accounts.
 Primary files: `apps/web/src/routes` (new route), `apps/web/src/components`
