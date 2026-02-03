@@ -2,6 +2,7 @@ import { api } from "@GroupScape/backend/convex/_generated/api";
 import { createFileRoute } from "@tanstack/react-router";
 import { useAction, useQuery } from "convex/react";
 import { useEffect, useState } from "react";
+import CreatePartyForm from "@/components/create-party-form";
 import HeadshotSelector from "@/components/headshot-selector";
 
 export const Route = createFileRoute("/")({
@@ -38,6 +39,8 @@ function HomeComponent() {
 
 	return (
 		<div className="container mx-auto max-w-3xl px-4 py-2">
+			<CreatePartyForm />
+
 			<pre className="overflow-x-auto font-mono text-sm">{TITLE_TEXT}</pre>
 			<div className="grid gap-6">
 				<section className="rounded-lg border p-4">
@@ -67,6 +70,8 @@ function HomeComponent() {
 						console.log(imageData);
 					}}
 				/>
+
+				<CreatePartyForm />
 			</div>
 		</div>
 	);

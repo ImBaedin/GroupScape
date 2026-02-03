@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { getStatsByGamemode } from "osrs-json-hiscores";
+import { getStatsByGamemode, parseJsonStats } from "osrs-json-hiscores";
 import { action } from "./_generated/server";
 
 export const getModelFromRuneProfile = action({

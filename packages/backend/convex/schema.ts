@@ -1,9 +1,87 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
+const memberStatus = v.union(v.literal("pending"), v.literal("accepted"));
+const partyStatus = v.union(v.literal("open"), v.literal("closed"));
+const verificationStatus = v.union(
+	v.literal("unverified"),
+	v.literal("pending"),
+	v.literal("verified"),
+);
+const verificationChallenge = v.object({
+	skill: v.string(),
+	expectedXp: v.number(),
+	baselineXp: v.number(),
+	issuedAt: v.number(),
+});
+
 export default defineSchema({
 	todos: defineTable({
 		text: v.string(),
 		completed: v.boolean(),
+	}),
+
+	// User table
+	users: defineTable({
+		tokenIdentifier: v.string(),
+		playerAccounts: v.array(v.id("playerAccounts")),
+	}),
+
+	/**
+	 * Player accounts table
+	 *
+	 * This stores individual player accounts for a user.
+	 */
+	playerAccounts: defineTable({
+		userId: v.id("users"),
+		stats: v.optional(v.id("playerAccountStats")),
+		username: v.string(),
+		/**
+		 * Convex storage ID for the account image.
+		 */
+		accountImageStorageId: v.optional(v.string()),
+		verificationStatus: v.optional(verificationStatus),
+		verificationChallenge: v.optional(verificationChallenge),
+		lastVerifiedAt: v.optional(v.number()),
+	}),
+
+	/**
+	 * Player account stats table
+	 *
+	 * This stores the CSV of hiscores stats for a player account.
+	 * Parse with `parseJsonStats` from `osrs-json-hiscores`.
+	 */
+	playerAccountStats: defineTable({
+		playerAccountId: v.id("playerAccounts"),
+		/**
+		 * CSV of hiscores stats. Parse with `parseJsonStats` from `osrs-json-hiscores`.
+		 */
+		stats: v.string(),
+		/**
+		 * Last updated timestamp.
+		 */
+		lastUpdated: v.number(),
+	}),
+
+	/**
+	 * Parties table
+	 */
+	parties: defineTable({
+		ownerId: v.id("users"),
+		members: v.array(
+			v.object({
+				memberId: v.id("users"),
+				playerAccountId: v.id("playerAccounts"),
+
+				status: memberStatus,
+			}),
+		),
+
+		name: v.string(),
+		description: v.optional(v.string()),
+		partySizeLimit: v.number(),
+		status: v.optional(partyStatus),
+		createdAt: v.optional(v.number()),
+		updatedAt: v.optional(v.number()),
 	}),
 });

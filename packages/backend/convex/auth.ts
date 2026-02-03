@@ -25,6 +25,13 @@ function createAuth(
 			requireEmailVerification: false,
 		},
 		plugins: [crossDomain({ siteUrl }), convex()],
+		socialProviders: {
+			discord: {
+				enabled: true,
+				clientID: process.env.DISCORD_CLIENT_ID!,
+				clientSecret: process.env.DISCORD_CLIENT_SECRET!,
+			},
+		},
 	});
 }
 

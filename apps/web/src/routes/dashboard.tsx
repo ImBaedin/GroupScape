@@ -16,7 +16,7 @@ export const Route = createFileRoute("/dashboard")({
 });
 
 function RouteComponent() {
-	const [showSignIn, setShowSignIn] = useState(false);
+	const [showSignIn, setShowSignIn] = useState(true);
 	const privateData = useQuery(api.privateData.get);
 
 	return (
