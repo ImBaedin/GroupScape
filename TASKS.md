@@ -147,7 +147,7 @@ Steps:
 Acceptance:
 1. Parties can be created without content selection.
 
-- [ ] Task B11: Party list + detail queries
+- [x] Task B11: Party list + detail queries
 Skills: $convex-functions
 Summary: Add list and detail queries with basic metadata.
 Primary files: `packages/backend/convex/parties.ts`
@@ -159,7 +159,7 @@ Steps:
 Acceptance:
 1. Client can render party list and detail pages.
 
-- [ ] Task B12: Request join
+- [x] Task B12: Request join
 Skills: $convex-functions
 Summary: Add request-to-join mutation with verification checks.
 Primary files: `packages/backend/convex/parties.ts`
@@ -172,7 +172,7 @@ Steps:
 Acceptance:
 1. Verified users can request; unverified are blocked.
 
-- [ ] Task B13: Approve/reject + leave
+- [x] Task B13: Approve/reject + leave
 Skills: $convex-functions
 Summary: Leader approves pending members; users can leave.
 Primary files: `packages/backend/convex/parties.ts`
