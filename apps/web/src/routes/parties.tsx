@@ -30,6 +30,8 @@ function PartiesRoute() {
 		isAuthenticated ? {} : undefined,
 	);
 	const partyList = parties ?? [];
+	const isPartiesLoading = isAuthenticated && parties === undefined;
+	const metricsReady = isAuthenticated && !isPartiesLoading;
 
 	const numberFormatter = useMemo(() => new Intl.NumberFormat(), []);
 	const dateFormatter = useMemo(
@@ -62,6 +64,13 @@ function PartiesRoute() {
 			),
 		[partyList],
 	);
+	const openPartiesMetric = metricsReady ? partyList.length : "--";
+	const acceptedMetric = metricsReady
+		? numberFormatter.format(totalAccepted)
+		: "--";
+	const pendingMetric = metricsReady
+		? numberFormatter.format(totalPending)
+		: "--";
 
 	const formatOwnerLabel = (ownerId: Id<"users">) => {
 		if (appUser?._id === ownerId) return "You";
@@ -160,25 +169,15 @@ function PartiesRoute() {
 								<div className="party-board-metrics">
 									<div className="party-metric">
 										<span>Open parties</span>
-										<strong>
-											{isAuthenticated ? partyList.length : "--"}
-										</strong>
+										<strong>{openPartiesMetric}</strong>
 									</div>
 									<div className="party-metric">
 										<span>Accepted</span>
-										<strong>
-											{isAuthenticated
-												? numberFormatter.format(totalAccepted)
-												: "--"}
-										</strong>
+										<strong>{acceptedMetric}</strong>
 									</div>
 									<div className="party-metric">
 										<span>Requests</span>
-										<strong>
-											{isAuthenticated
-												? numberFormatter.format(totalPending)
-												: "--"}
-										</strong>
+										<strong>{pendingMetric}</strong>
 									</div>
 								</div>
 							</div>

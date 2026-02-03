@@ -206,6 +206,41 @@ export const markVerified = internalMutation({
 	},
 });
 
+export const cancelVerification = mutation({
+	args: {
+		accountId: v.id("playerAccounts"),
+	},
+	returns: playerAccountValidator,
+	handler: async (ctx, args) => {
+		const user = await requireUser(ctx);
+		const account = await ctx.db.get(args.accountId);
+
+		if (!account) {
+			throw new ConvexError("Account not found");
+		}
+
+		if (account.userId !== user._id) {
+			throw new ConvexError("Not authorized to update this account");
+		}
+
+		if (account.verificationStatus !== "pending") {
+			throw new ConvexError("No pending verification to cancel");
+		}
+
+		await ctx.db.patch(args.accountId, {
+			verificationStatus: "unverified",
+			verificationChallenge: undefined,
+		});
+
+		const updated = await ctx.db.get(args.accountId);
+		if (!updated) {
+			throw new ConvexError("Account not found");
+		}
+
+		return updated;
+	},
+});
+
 export const setHeadshotStorageId = mutation({
 	args: {
 		accountId: v.id("playerAccounts"),

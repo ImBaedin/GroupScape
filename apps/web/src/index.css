@@ -1976,6 +1976,34 @@ body {
 	box-shadow: 0 12px 30px oklch(0.35 0.12 50 / 0.12);
 }
 
+.profile-user-identity {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 0.6rem;
+}
+
+.profile-user-avatar {
+	width: 2.4rem;
+	height: 2.4rem;
+	border-radius: 999px;
+	overflow: hidden;
+	display: grid;
+	place-items: center;
+	background: color-mix(in oklch, var(--rs-paper) 92%, transparent);
+	border: 1px solid color-mix(in oklch, var(--rs-border) 70%, transparent);
+	box-shadow: 0 10px 20px oklch(0.35 0.12 50 / 0.18);
+	font-size: 0.75rem;
+	font-weight: 700;
+	color: var(--rs-ink);
+}
+
+.profile-user-avatar img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
 .profile-user-label {
 	font-size: 0.6rem;
 	letter-spacing: 0.3em;

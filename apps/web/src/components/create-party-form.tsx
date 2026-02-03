@@ -1,6 +1,7 @@
 import { api } from "@GroupScape/backend/convex/_generated/api";
 import { useMutation } from "convex/react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -26,6 +27,7 @@ export default function CreatePartyForm() {
 	const [partyName, setPartyName] = useState("");
 	const [description, setDescription] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [submitError, setSubmitError] = useState<string | null>(null);
 
 	const createParty = useMutation(api.parties.create);
 
@@ -35,6 +37,7 @@ export default function CreatePartyForm() {
 		if (!trimmedName) return;
 
 		setIsSubmitting(true);
+		setSubmitError(null);
 		try {
 			await createParty({
 				name: trimmedName,
@@ -45,8 +48,12 @@ export default function CreatePartyForm() {
 			setPartyName("");
 			setDescription("");
 			setPartySizeLimit(DEFAULT_PARTY_SIZE);
+			toast.success("Party created");
 		} catch (error) {
-			console.error("Failed to create party:", error);
+			const message =
+				error instanceof Error ? error.message : "Failed to create party";
+			setSubmitError(message);
+			toast.error(message);
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -69,7 +76,10 @@ export default function CreatePartyForm() {
 						<Input
 							id="partyName"
 							value={partyName}
-							onChange={(e) => setPartyName(e.target.value)}
+							onChange={(e) => {
+								setPartyName(e.target.value);
+								if (submitError) setSubmitError(null);
+							}}
 							maxLength={PARTY_NAME_MAX}
 							placeholder="Enter a short, clear title"
 							required
@@ -84,7 +94,10 @@ export default function CreatePartyForm() {
 						<Textarea
 							id="description"
 							value={description}
-							onChange={(e) => setDescription(e.target.value)}
+							onChange={(e) => {
+								setDescription(e.target.value);
+								if (submitError) setSubmitError(null);
+							}}
 							maxLength={DESCRIPTION_MAX}
 							placeholder="Share expectations, schedule, or goals"
 						/>
@@ -104,6 +117,7 @@ export default function CreatePartyForm() {
 							onChange={(e) => {
 								const value = Number.parseInt(e.target.value, 10);
 								if (Number.isNaN(value)) return;
+								if (submitError) setSubmitError(null);
 								setPartySizeLimit(
 									Math.max(PARTY_SIZE_MIN, Math.min(PARTY_SIZE_MAX, value)),
 								);
@@ -123,6 +137,9 @@ export default function CreatePartyForm() {
 					>
 						{isSubmitting ? "Creating..." : "Create Party"}
 					</Button>
+					{submitError && (
+						<p className="text-sm text-destructive">{submitError}</p>
+					)}
 				</form>
 			</CardContent>
 		</Card>

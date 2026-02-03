@@ -16,8 +16,9 @@ import {
 	Sparkles,
 	Trash2,
 	UserPlus,
+	X,
 } from "lucide-react";
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import HeadshotSelector from "@/components/headshot-selector";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -72,6 +73,7 @@ type VerificationState = {
 	result?: VerificationResult;
 	isStarting?: boolean;
 	isVerifying?: boolean;
+	isCanceling?: boolean;
 	error?: string;
 };
 
@@ -143,6 +145,7 @@ function ProfileRoute() {
 	const addAccount = useMutation(api.playerAccounts.add);
 	const deleteAccount = useMutation(api.playerAccounts.delete);
 	const setActiveAccount = useMutation(api.users.setActiveAccount);
+	const cancelVerification = useMutation(api.playerAccounts.cancelVerification);
 	const startVerification = useAction(api.verification.start);
 	const verifyAccount = useAction(api.verification.verify);
 	const saveHeadshot = useAction(api.headshots.saveHeadshot);
@@ -152,28 +155,31 @@ function ProfileRoute() {
 	const [deletingId, setDeletingId] = useState<Id<"playerAccounts"> | null>(
 		null,
 	);
-	const [activeUpdatingId, setActiveUpdatingId] = useState<
-		Id<"playerAccounts"> | null
-	>(null);
-	const [headshotEditingId, setHeadshotEditingId] = useState<
-		Id<"playerAccounts"> | null
-	>(null);
-	const [headshotSavingId, setHeadshotSavingId] = useState<
-		Id<"playerAccounts"> | null
-	>(null);
+	const [activeUpdatingId, setActiveUpdatingId] =
+		useState<Id<"playerAccounts"> | null>(null);
+	const [headshotEditingId, setHeadshotEditingId] =
+		useState<Id<"playerAccounts"> | null>(null);
+	const [headshotSavingId, setHeadshotSavingId] =
+		useState<Id<"playerAccounts"> | null>(null);
 	const [headshotErrors, setHeadshotErrors] = useState<
 		Record<string, string | undefined>
 	>({});
 	const [verificationState, setVerificationState] = useState<
 		Record<string, VerificationState>
 	>({});
+	const [nowMs, setNowMs] = useState(() => Date.now());
 
 	const accountList = accounts ?? [];
+	const isAccountsLoading = isAuthenticated && accounts === undefined;
+	const userImage = user?.image ?? null;
 	const activeAccountId = appUser?.activePlayerAccountId ?? null;
 	const activeAccount = activeAccountId
-		? accountList.find((account) => account._id === activeAccountId) ?? null
+		? (accountList.find((account) => account._id === activeAccountId) ?? null)
 		: null;
 	const stats = useMemo(() => {
+		if (isAccountsLoading) {
+			return null;
+		}
 		const counts = {
 			total: accountList.length,
 			verified: 0,
@@ -186,7 +192,17 @@ function ProfileRoute() {
 			if (status === "pending") counts.pending += 1;
 		}
 		return counts;
-	}, [accountList]);
+	}, [accountList, isAccountsLoading]);
+	const shouldTick = useMemo(() => {
+		if (!isAuthenticated) return false;
+		return accountList.some((account) => {
+			const status = (account.verificationStatus ??
+				"unverified") as VerificationStatus;
+			if (status === "pending") return true;
+			const localChallenge = verificationState[account._id]?.challenge;
+			return Boolean(localChallenge) && status !== "verified";
+		});
+	}, [accountList, isAuthenticated, verificationState]);
 	const numberFormatter = useMemo(() => new Intl.NumberFormat(), []);
 	const dateFormatter = useMemo(
 		() =>
@@ -196,6 +212,19 @@ function ProfileRoute() {
 			}),
 		[],
 	);
+
+	useEffect(() => {
+		if (!shouldTick) {
+			setNowMs(Date.now());
+			return;
+		}
+		const intervalId = window.setInterval(() => {
+			setNowMs(Date.now());
+		}, 1000);
+		return () => {
+			window.clearInterval(intervalId);
+		};
+	}, [shouldTick]);
 
 	const updateVerificationState = (
 		accountId: Id<"playerAccounts">,
@@ -251,9 +280,7 @@ function ProfileRoute() {
 		}
 	};
 
-	const handleSetActiveAccount = async (
-		accountId: Id<"playerAccounts">,
-	) => {
+	const handleSetActiveAccount = async (accountId: Id<"playerAccounts">) => {
 		if (activeAccountId === accountId) return;
 		setActiveUpdatingId(accountId);
 		try {
@@ -315,6 +342,31 @@ function ProfileRoute() {
 			toast.error(message);
 		} finally {
 			updateVerificationState(accountId, { isVerifying: false });
+		}
+	};
+
+	const handleCancelVerification = async (accountId: Id<"playerAccounts">) => {
+		updateVerificationState(accountId, {
+			isCanceling: true,
+			error: undefined,
+		});
+		try {
+			await cancelVerification({ accountId });
+			updateVerificationState(accountId, {
+				instructions: undefined,
+				challenge: undefined,
+				result: undefined,
+			});
+			toast.success("Verification canceled");
+		} catch (error) {
+			const message =
+				error instanceof Error
+					? error.message
+					: "Unable to cancel verification";
+			updateVerificationState(accountId, { error: message });
+			toast.error(message);
+		} finally {
+			updateVerificationState(accountId, { isCanceling: false });
 		}
 	};
 
@@ -399,58 +451,20 @@ function ProfileRoute() {
 						</div>
 						<div className="profile-user">
 							<span className="profile-user-label">Signed in as</span>
-							<span className="profile-user-name">
-								{user?.name ?? "Adventurer"}
-							</span>
-							<div className="profile-active">
-								<span className="profile-active-label">Active account</span>
-								<DropdownMenu>
-									<DropdownMenuTrigger
-										type="button"
-										disabled={accountList.length === 0}
-										className={cn(
-											buttonVariants({ variant: "secondary", size: "sm" }),
-											"profile-active-trigger",
-										)}
-									>
-										<span className="profile-active-name">
-											{activeAccount?.username ?? "Select account"}
-										</span>
-										{activeUpdatingId ? (
-											<Loader2 className="h-3.5 w-3.5 animate-spin" />
-										) : (
-											<ChevronDown className="h-3.5 w-3.5" />
-										)}
-									</DropdownMenuTrigger>
-									<DropdownMenuContent align="end">
-										<DropdownMenuLabel>
-											Choose active account
-										</DropdownMenuLabel>
-										<DropdownMenuGroup>
-											{accountList.length === 0 ? (
-												<DropdownMenuItem disabled>
-													Add an account first
-												</DropdownMenuItem>
-											) : (
-												accountList.map((account) => (
-													<DropdownMenuItem
-														key={account._id}
-														onClick={() =>
-															handleSetActiveAccount(account._id)
-														}
-														disabled={activeUpdatingId !== null}
-														className="profile-active-item"
-													>
-														<span>{account.username}</span>
-														{activeAccountId === account._id && (
-															<Check className="h-4 w-4" />
-														)}
-													</DropdownMenuItem>
-												))
-											)}
-										</DropdownMenuGroup>
-									</DropdownMenuContent>
-								</DropdownMenu>
+							<div className="profile-user-identity">
+								<span className="profile-user-avatar">
+									{userImage ? (
+										<img
+											src={userImage}
+											alt={`${user?.name ?? "Adventurer"} avatar`}
+										/>
+									) : (
+										<span>{getAccountInitials(user?.name ?? "Adventurer")}</span>
+									)}
+								</span>
+								<span className="profile-user-name">
+									{user?.name ?? "Adventurer"}
+								</span>
 							</div>
 						</div>
 					</div>
@@ -461,15 +475,21 @@ function ProfileRoute() {
 					<div className="profile-stats">
 						<div className="profile-stat-card">
 							<span className="profile-stat-label">Linked Accounts</span>
-							<span className="profile-stat-value">{stats.total}</span>
+							<span className="profile-stat-value">
+								{stats ? stats.total : "--"}
+							</span>
 						</div>
 						<div className="profile-stat-card">
 							<span className="profile-stat-label">Verified</span>
-							<span className="profile-stat-value">{stats.verified}</span>
+							<span className="profile-stat-value">
+								{stats ? stats.verified : "--"}
+							</span>
 						</div>
 						<div className="profile-stat-card">
 							<span className="profile-stat-label">Pending Checks</span>
-							<span className="profile-stat-value">{stats.pending}</span>
+							<span className="profile-stat-value">
+								{stats ? stats.pending : "--"}
+							</span>
 						</div>
 					</div>
 				</header>
@@ -557,7 +577,7 @@ function ProfileRoute() {
 										const accountState = verificationState[account._id] ?? {};
 										const challenge =
 											accountState.challenge ?? account.verificationChallenge;
-										const now = Date.now();
+										const now = nowMs;
 										const challengeAgeMs = challenge
 											? Math.max(0, now - challenge.issuedAt)
 											: 0;
@@ -574,6 +594,7 @@ function ProfileRoute() {
 										const canStart = status !== "verified";
 										const canVerify =
 											status === "pending" && Boolean(challenge) && !isExpired;
+										const canCancel = status === "pending";
 										const startLabel =
 											status === "pending"
 												? isExpired
@@ -613,14 +634,10 @@ function ProfileRoute() {
 										const verifiedAt = account.lastVerifiedAt
 											? dateFormatter.format(new Date(account.lastVerifiedAt))
 											: null;
-										const isHeadshotOpen =
-											headshotEditingId === account._id;
-										const isHeadshotSaving =
-											headshotSavingId === account._id;
+										const isHeadshotOpen = headshotEditingId === account._id;
+										const isHeadshotSaving = headshotSavingId === account._id;
 										const headshotError = headshotErrors[account._id];
-										const hasHeadshot = Boolean(
-											account.accountImageStorageId,
-										);
+										const hasHeadshot = Boolean(account.accountImageStorageId);
 										return (
 											<div key={account._id} className="profile-account-card">
 												<div className="profile-account-header">
@@ -818,6 +835,28 @@ function ProfileRoute() {
 																		? "Checking..."
 																		: "Verify Now"}
 																</Button>
+																{canCancel && (
+																	<Button
+																		variant="ghost"
+																		className="profile-secondary profile-verify-cancel"
+																		disabled={
+																			accountState.isCanceling ||
+																			accountState.isVerifying
+																		}
+																		onClick={() =>
+																			handleCancelVerification(account._id)
+																		}
+																	>
+																		{accountState.isCanceling ? (
+																			<Loader2 className="h-4 w-4 animate-spin" />
+																		) : (
+																			<X className="h-4 w-4" />
+																		)}
+																		{accountState.isCanceling
+																			? "Canceling..."
+																			: "Cancel"}
+																	</Button>
+																)}
 															</div>
 															{(resultMessage || (isExpired && !result)) && (
 																<div

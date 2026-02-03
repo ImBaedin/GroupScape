@@ -301,7 +301,7 @@ Steps:
 Acceptance:
 1. All steps succeed without errors.
 
-- [ ] Task T2: Error and loading states audit
+- [x] Task T2: Error and loading states audit
 Skills: $frontend-design
 Summary: Ensure UX covers empty, loading, and error states.
 Primary files: `apps/web/src/routes`, `apps/web/src/components`
