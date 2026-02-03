@@ -251,7 +251,7 @@ Steps:
 Acceptance:
 1. Parties can be created with name/description only.
 
-- [ ] Task F6: Party list view
+- [x] Task F6: Party list view
 Skills: $frontend-design
 Summary: Show open parties with basic metadata.
 Primary files: `apps/web/src/routes` (new route or home), `apps/web/src/components`
@@ -263,7 +263,7 @@ Steps:
 Acceptance:
 1. Users can browse open parties.
 
-- [ ] Task F7: Party detail view
+- [x] Task F7: Party detail view
 Skills: $frontend-design
 Summary: Show party details and allow join request.
 Primary files: `apps/web/src/routes` (new route), `apps/web/src/components`

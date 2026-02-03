@@ -15,6 +15,7 @@ import { Route as PartyTrackerRouteImport } from './routes/party-tracker'
 import { Route as PartiesRouteImport } from './routes/parties'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PartyPartyIdRouteImport } from './routes/party.$partyId'
 
 const TodosRoute = TodosRouteImport.update({
   id: '/todos',
@@ -46,6 +47,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PartyPartyIdRoute = PartyPartyIdRouteImport.update({
+  id: '/party/$partyId',
+  path: '/party/$partyId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -54,6 +60,7 @@ export interface FileRoutesByFullPath {
   '/party-tracker': typeof PartyTrackerRoute
   '/profile': typeof ProfileRoute
   '/todos': typeof TodosRoute
+  '/party/$partyId': typeof PartyPartyIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -62,6 +69,7 @@ export interface FileRoutesByTo {
   '/party-tracker': typeof PartyTrackerRoute
   '/profile': typeof ProfileRoute
   '/todos': typeof TodosRoute
+  '/party/$partyId': typeof PartyPartyIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,6 +79,7 @@ export interface FileRoutesById {
   '/party-tracker': typeof PartyTrackerRoute
   '/profile': typeof ProfileRoute
   '/todos': typeof TodosRoute
+  '/party/$partyId': typeof PartyPartyIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -81,8 +90,16 @@ export interface FileRouteTypes {
     | '/party-tracker'
     | '/profile'
     | '/todos'
+    | '/party/$partyId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/parties' | '/party-tracker' | '/profile' | '/todos'
+  to:
+    | '/'
+    | '/auth'
+    | '/parties'
+    | '/party-tracker'
+    | '/profile'
+    | '/todos'
+    | '/party/$partyId'
   id:
     | '__root__'
     | '/'
@@ -91,6 +108,7 @@ export interface FileRouteTypes {
     | '/party-tracker'
     | '/profile'
     | '/todos'
+    | '/party/$partyId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -100,6 +118,7 @@ export interface RootRouteChildren {
   PartyTrackerRoute: typeof PartyTrackerRoute
   ProfileRoute: typeof ProfileRoute
   TodosRoute: typeof TodosRoute
+  PartyPartyIdRoute: typeof PartyPartyIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -146,6 +165,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/party/$partyId': {
+      id: '/party/$partyId'
+      path: '/party/$partyId'
+      fullPath: '/party/$partyId'
+      preLoaderRoute: typeof PartyPartyIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -156,6 +182,7 @@ const rootRouteChildren: RootRouteChildren = {
   PartyTrackerRoute: PartyTrackerRoute,
   ProfileRoute: ProfileRoute,
   TodosRoute: TodosRoute,
+  PartyPartyIdRoute: PartyPartyIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

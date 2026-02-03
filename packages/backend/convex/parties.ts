@@ -63,6 +63,56 @@ export const list = query({
 	},
 });
 
+const activePartyValidator = v.object({
+	_id: v.id("parties"),
+	_creationTime: v.number(),
+	name: v.string(),
+	status: v.optional(partyStatusValidator),
+	createdAt: v.optional(v.number()),
+	updatedAt: v.optional(v.number()),
+});
+
+export const getActiveForUser = query({
+	args: {},
+	returns: v.union(activePartyValidator, v.null()),
+	handler: async (ctx) => {
+		const user = await requireUser(ctx);
+		const parties = await ctx.db.query("parties").collect();
+
+		const candidates = parties.filter(
+			(party) =>
+				party.ownerId === user._id ||
+				party.members.some(
+					(member) =>
+						member.memberId === user._id && member.status === "accepted",
+				),
+		);
+
+		if (candidates.length === 0) {
+			return null;
+		}
+
+		const sortValue = (party: Doc<"parties">) =>
+			party.updatedAt ?? party.createdAt ?? party._creationTime;
+
+		const openCandidates = candidates.filter(
+			(party) => party.status !== "closed",
+		);
+		const pool = openCandidates.length > 0 ? openCandidates : candidates;
+
+		const active = [...pool].sort((a, b) => sortValue(b) - sortValue(a))[0];
+
+		return {
+			_id: active._id,
+			_creationTime: active._creationTime,
+			name: active.name,
+			status: active.status,
+			createdAt: active.createdAt,
+			updatedAt: active.updatedAt,
+		};
+	},
+});
+
 export const get = query({
 	args: {
 		partyId: v.id("parties"),
@@ -140,6 +190,10 @@ export const requestJoin = mutation({
 		}
 
 		const isOwner = party.ownerId === user._id;
+		if (isOwner) {
+			throw new ConvexError("Party owner is already part of this party");
+		}
+
 		if (!isOwner && account.verificationStatus !== "verified") {
 			throw new ConvexError("Account must be verified to request to join");
 		}
@@ -208,9 +262,8 @@ export const reviewRequest = mutation({
 				throw new ConvexError("Party is closed");
 			}
 
-			const acceptedCount = party.members.filter(
-				(entry) => entry.status === "accepted",
-			).length;
+			const acceptedCount =
+				party.members.filter((entry) => entry.status === "accepted").length + 1;
 
 			if (acceptedCount >= party.partySizeLimit) {
 				throw new ConvexError("Party is full");
@@ -237,6 +290,105 @@ export const reviewRequest = mutation({
 		}
 
 		return updated;
+	},
+});
+
+export const updateDetails = mutation({
+	args: {
+		partyId: v.id("parties"),
+		name: v.string(),
+		description: v.optional(v.string()),
+	},
+	returns: partyValidator,
+	handler: async (ctx, args) => {
+		const user = await requireUser(ctx);
+
+		const party = await ctx.db.get(args.partyId);
+		if (!party) {
+			throw new ConvexError("Party not found");
+		}
+
+		if (party.ownerId !== user._id) {
+			throw new ConvexError("Not authorized to edit this party");
+		}
+
+		const trimmedName = args.name.trim();
+		if (trimmedName.length === 0) {
+			throw new ConvexError("Party name cannot be empty");
+		}
+
+		const trimmedDescription = args.description?.trim();
+		const now = Date.now();
+
+		await ctx.db.patch(args.partyId, {
+			name: trimmedName,
+			description: trimmedDescription && trimmedDescription.length > 0
+				? trimmedDescription
+				: undefined,
+			updatedAt: now,
+		});
+
+		const updated = await ctx.db.get(args.partyId);
+		if (!updated) {
+			throw new ConvexError("Party not found");
+		}
+
+		return updated;
+	},
+});
+
+export const updateStatus = mutation({
+	args: {
+		partyId: v.id("parties"),
+		status: partyStatusValidator,
+	},
+	returns: partyValidator,
+	handler: async (ctx, args) => {
+		const user = await requireUser(ctx);
+
+		const party = await ctx.db.get(args.partyId);
+		if (!party) {
+			throw new ConvexError("Party not found");
+		}
+
+		if (party.ownerId !== user._id) {
+			throw new ConvexError("Not authorized to update party status");
+		}
+
+		const now = Date.now();
+		await ctx.db.patch(args.partyId, {
+			status: args.status,
+			updatedAt: now,
+		});
+
+		const updated = await ctx.db.get(args.partyId);
+		if (!updated) {
+			throw new ConvexError("Party not found");
+		}
+
+		return updated;
+	},
+});
+
+export const remove = mutation({
+	args: {
+		partyId: v.id("parties"),
+	},
+	returns: v.null(),
+	handler: async (ctx, args) => {
+		const user = await requireUser(ctx);
+
+		const party = await ctx.db.get(args.partyId);
+		if (!party) {
+			throw new ConvexError("Party not found");
+		}
+
+		if (party.ownerId !== user._id) {
+			throw new ConvexError("Not authorized to remove this party");
+		}
+
+		await ctx.db.delete(args.partyId);
+		return null;
 	},
 });
 

@@ -1,4 +1,7 @@
+import { api } from "@GroupScape/backend/convex/_generated/api";
 import { Link } from "@tanstack/react-router";
+import { useConvexAuth, useQuery } from "convex/react";
+import { Users } from "lucide-react";
 import ProfileBadge from "@/components/profile-badge";
 import { ModeToggle } from "./mode-toggle";
 
@@ -9,6 +12,11 @@ export default function Header() {
 		{ to: "/profile", label: "Profile" },
 		{ to: "/party-tracker", label: "Party Tracker" },
 	] as const;
+	const { isAuthenticated } = useConvexAuth();
+	const activeParty = useQuery(
+		api.parties.getActiveForUser,
+		isAuthenticated ? {} : "skip",
+	);
 
 	return (
 		<header className="app-header">
@@ -34,6 +42,19 @@ export default function Header() {
 					})}
 				</nav>
 				<div className="app-actions">
+					{activeParty ? (
+						<Link
+							to="/party/$partyId"
+							params={{ partyId: activeParty._id }}
+							className="app-active-party"
+						>
+							<Users className="h-4 w-4" />
+							<span className="app-active-party-label">Active</span>
+							<span className="app-active-party-name">
+								{activeParty.name}
+							</span>
+						</Link>
+					) : null}
 					<ProfileBadge />
 					<ModeToggle />
 				</div>

@@ -111,7 +111,8 @@ export default function CreatePartyForm() {
 							required
 						/>
 						<p className="text-muted-foreground text-xs">
-							Set a cap between {PARTY_SIZE_MIN} and {PARTY_SIZE_MAX} players.
+							Set a cap between {PARTY_SIZE_MIN} and {PARTY_SIZE_MAX} players,
+							including the leader.
 						</p>
 					</div>
 
