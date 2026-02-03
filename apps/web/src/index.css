@@ -399,3 +399,276 @@ body {
 		transform: translateY(0);
 	}
 }
+
+.guild-landing {
+	position: relative;
+	isolation: isolate;
+	background-color: var(--rs-paper-deep);
+	background:
+		radial-gradient(
+			circle at top left,
+			color-mix(in oklch, var(--rs-gold) 25%, transparent) 0%,
+			transparent 55%
+		),
+		radial-gradient(
+			circle at 15% 35%,
+			color-mix(in oklch, var(--rs-paper-deep) 35%, transparent) 0%,
+			transparent 60%
+		),
+		linear-gradient(140deg, var(--rs-paper) 0%, var(--rs-paper-deep) 80%);
+	background-repeat: no-repeat;
+	background-size: cover;
+}
+
+.guild-landing::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background:
+		linear-gradient(
+			90deg,
+			color-mix(in oklch, var(--rs-border) 40%, transparent) 1px,
+			transparent 1px
+		),
+		linear-gradient(
+			180deg,
+			color-mix(in oklch, var(--rs-border) 35%, transparent) 1px,
+			transparent 1px
+		),
+		linear-gradient(
+			135deg,
+			color-mix(in oklch, var(--rs-gold) 20%, transparent) 0%,
+			transparent 45%,
+			color-mix(in oklch, var(--rs-gold-deep) 25%, transparent) 100%
+		);
+	background-size: 80px 80px, 80px 80px, 100% 100%;
+	mix-blend-mode: multiply;
+	opacity: 0.5;
+	pointer-events: none;
+}
+
+.guild-topbar {
+	position: relative;
+	z-index: 1;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	padding: 1.25rem 1.5rem;
+	border-radius: 999px;
+	background: color-mix(in oklch, var(--rs-paper) 82%, transparent);
+	border: 1px solid color-mix(in oklch, var(--rs-border) 75%, transparent);
+	box-shadow: 0 20px 45px oklch(0.35 0.12 50 / 0.18);
+	backdrop-filter: blur(10px);
+}
+
+.guild-brand {
+	font-family: "rsbold", "Public Sans", system-ui, sans-serif;
+	font-size: 1.1rem;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--rs-ink);
+}
+
+.guild-brand-sub {
+	font-size: 0.7rem;
+	letter-spacing: 0.25em;
+	text-transform: uppercase;
+	color: var(--rs-ink-muted);
+}
+
+.guild-hero {
+	position: relative;
+	z-index: 1;
+}
+
+.guild-eyebrow {
+	font-size: 0.7rem;
+	font-weight: 700;
+	letter-spacing: 0.35em;
+	text-transform: uppercase;
+	color: var(--rs-ink-muted);
+}
+
+.guild-title {
+	font-family: "rsbold", "Public Sans", system-ui, sans-serif;
+	color: var(--rs-ink);
+	text-shadow: 0 12px 40px var(--rs-glow);
+}
+
+.guild-lede {
+	max-width: 35rem;
+}
+
+.guild-button {
+	border-radius: 999px;
+	padding: 0.75rem 1.6rem;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	background: linear-gradient(135deg, var(--rs-gold), var(--rs-gold-deep));
+	color: color-mix(in oklch, var(--rs-ink) 90%, #000);
+	box-shadow:
+		0 14px 32px oklch(0.4 0.15 50 / 0.25),
+		inset 0 1px 0 oklch(1 0 0 / 0.5);
+	transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.guild-button:hover {
+	transform: translateY(-1px) scale(1.01);
+	box-shadow:
+		0 18px 48px oklch(0.4 0.15 50 / 0.35),
+		inset 0 1px 0 oklch(1 0 0 / 0.6);
+}
+
+.guild-button-secondary {
+	background: linear-gradient(135deg, var(--rs-paper), var(--rs-paper-deep));
+	color: var(--rs-ink);
+	border: 1px solid var(--rs-border);
+}
+
+.guild-button-ghost {
+	background: transparent;
+	color: var(--rs-ink);
+	border: 1px solid color-mix(in oklch, var(--rs-border) 60%, transparent);
+}
+
+.guild-button-primary {
+	white-space: nowrap;
+}
+
+.guild-search {
+	border-radius: 24px;
+	border: 1px solid color-mix(in oklch, var(--rs-border) 70%, transparent);
+	background: color-mix(in oklch, var(--rs-paper) 78%, transparent);
+	box-shadow:
+		0 18px 45px oklch(0.35 0.12 50 / 0.18),
+		inset 0 0 0 1px color-mix(in oklch, var(--rs-border) 70%, transparent);
+}
+
+.guild-input {
+	flex: 1;
+	min-width: 220px;
+	border-radius: 999px;
+	border: 1px solid var(--rs-border);
+	background: color-mix(in oklch, var(--rs-paper) 88%, transparent);
+	padding: 0.7rem 1.2rem;
+	font-size: 0.95rem;
+	color: var(--rs-ink);
+}
+
+.guild-input::placeholder {
+	color: var(--rs-ink-muted);
+}
+
+.guild-panel {
+	border-radius: 28px;
+	padding: 2rem;
+	background:
+		linear-gradient(160deg, var(--rs-paper), var(--rs-paper-deep));
+	border: 1px solid var(--rs-border);
+	box-shadow: 0 30px 80px oklch(0.35 0.12 50 / 0.22);
+}
+
+.guild-panel-header {
+	border-bottom: 1px solid color-mix(in oklch, var(--rs-border) 75%, transparent);
+	padding-bottom: 1rem;
+}
+
+.guild-panel-title {
+	font-family: "rsbold", "Public Sans", system-ui, sans-serif;
+	color: var(--rs-ink);
+}
+
+.guild-stat {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+	padding: 0.9rem 1rem;
+	border-radius: 18px;
+	background: color-mix(in oklch, var(--rs-paper) 88%, transparent);
+	border: 1px solid color-mix(in oklch, var(--rs-border) 80%, transparent);
+}
+
+.guild-stat-label {
+	font-size: 0.65rem;
+	text-transform: uppercase;
+	letter-spacing: 0.22em;
+	color: var(--rs-ink-muted);
+}
+
+.guild-stat-value {
+	font-size: 1.5rem;
+	font-weight: 700;
+	color: var(--rs-ink);
+}
+
+.guild-divider {
+	height: 1px;
+	background: linear-gradient(
+		90deg,
+		transparent,
+		color-mix(in oklch, var(--rs-gold) 55%, transparent),
+		transparent
+	);
+	margin: 1rem 0;
+}
+
+.guild-help li {
+	padding: 0.85rem 1rem;
+	border-radius: 16px;
+	background: color-mix(in oklch, var(--rs-paper) 88%, transparent);
+	border: 1px solid color-mix(in oklch, var(--rs-border) 70%, transparent);
+}
+
+.guild-card {
+	border-radius: 24px;
+	padding: 1.5rem;
+	background: color-mix(in oklch, var(--rs-paper) 78%, transparent);
+	border: 1px solid color-mix(in oklch, var(--rs-border) 70%, transparent);
+	box-shadow: 0 18px 50px oklch(0.35 0.12 50 / 0.15);
+	animation: guild-rise 0.7s ease forwards;
+}
+
+.guild-card-title {
+	font-family: "rsbold", "Public Sans", system-ui, sans-serif;
+	color: var(--rs-ink);
+	margin-bottom: 0.5rem;
+}
+
+.guild-footer {
+	display: flex;
+	flex-direction: column;
+	gap: 1.5rem;
+	border-radius: 28px;
+	padding: 2rem;
+	background: linear-gradient(
+		135deg,
+		color-mix(in oklch, var(--rs-paper) 85%, transparent),
+		color-mix(in oklch, var(--rs-paper-deep) 90%, transparent)
+	);
+	border: 1px solid var(--rs-border);
+	box-shadow: 0 20px 60px oklch(0.35 0.12 50 / 0.2);
+}
+
+.guild-footer-title {
+	font-family: "rsbold", "Public Sans", system-ui, sans-serif;
+	color: var(--rs-ink);
+}
+
+.guild-footer-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 1rem;
+}
+
+@keyframes guild-rise {
+	from {
+		opacity: 0;
+		transform: translateY(16px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}

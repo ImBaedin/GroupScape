@@ -16,148 +16,176 @@ export const Route = createFileRoute("/")({
 
 function HomeComponent() {
 	return (
-		<div className="runescape-landing min-h-[calc(100svh-4rem)] px-4 pb-16 pt-10 sm:px-8">
-			<div className="mx-auto max-w-6xl">
-				<section className="runescape-hero grid gap-10 lg:grid-cols-[1.15fr_0.85fr]">
+		<div className="guild-landing min-h-[calc(100svh-4rem)] px-4 pt-10 pb-20 sm:px-8">
+			<div className="mx-auto max-w-6xl space-y-14">
+				<header className="guild-topbar">
+					<div className="flex items-center gap-3">
+						<img
+							src="/logo.png"
+							alt="GroupScape"
+							className="h-10 w-10 rounded-full border border-border/60"
+						/>
+						<div>
+							<p className="guild-brand">GroupScape</p>
+							<p className="guild-brand-sub">
+								Finding a team isn't easy, but can be easier
+							</p>
+						</div>
+					</div>
+					<div className="flex flex-wrap items-center gap-3">
+						<a className="guild-button guild-button-ghost" href="#">
+							Sign In
+						</a>
+						<a className="guild-button" href="#">
+							Sign Up
+						</a>
+					</div>
+				</header>
+
+				<section className="guild-hero grid gap-10 lg:grid-cols-[1.15fr_0.85fr]">
 					<div className="space-y-6">
-						<p className="runescape-eyebrow">GroupScape Party Tracker</p>
-						<h1 className="runescape-title text-4xl sm:text-5xl lg:text-6xl">
-							Adventuring is better together.
+						<p className="guild-eyebrow">GroupScape Party Tracker</p>
+						<h1 className="guild-title text-4xl sm:text-5xl lg:text-6xl">
+							Coordinate any in-game activity with clarity.
 						</h1>
-						<p className="runescape-lede text-lg text-muted-foreground">
-							GroupScape helps you discover active parties, coordinate your
-							clanmates, and keep every raid on schedule. Find a party in
-							seconds, then keep the group synced with a RuneLite plugin that
-							updates as you play.
+						<p className="guild-lede text-lg text-muted-foreground">
+							GroupScape keeps every party synced: discover active teams for
+							bosses, minigames, skilling, and quests, then stay aligned with a
+							RuneLite plugin that updates as you play.
 						</p>
 						<div className="flex flex-wrap items-center gap-4">
-							<a className="runescape-button" href="#">
+							<a className="guild-button guild-button-primary" href="#">
 								Download RuneLite Plugin
 							</a>
 							<Button
 								variant="secondary"
-								className="runescape-button runescape-button-secondary"
+								className="guild-button guild-button-secondary"
 							>
 								Create a Party
 							</Button>
 						</div>
-						<div className="runescape-search">
-							<label className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-								Search active parties
-							</label>
-							<div className="mt-3 flex flex-col gap-3 sm:flex-row">
+
+						<Card className="guild-search">
+							<CardHeader className="pb-2">
+								<CardTitle className="guild-card-title text-lg">
+									Find a party fast
+								</CardTitle>
+								<CardDescription>
+									Search by boss, minigame, skilling, or party name. We surface
+									the best match for your time and role.
+								</CardDescription>
+							</CardHeader>
+							<CardContent className="flex flex-col gap-3 sm:flex-row">
 								<Input
-									className="runescape-input"
+									className="guild-input"
 									placeholder="Search by boss, region, or party name"
 								/>
-								<Button className="runescape-button runescape-button-primary">
+								<Button className="guild-button guild-button-primary">
 									Find Parties
 								</Button>
-							</div>
-						</div>
+							</CardContent>
+						</Card>
 					</div>
-					<Card className="runescape-panel space-y-6">
-						<CardHeader className="runescape-panel-header">
-							<p className="text-xs font-semibold uppercase tracking-[0.3em]">
-								Live Stats
-							</p>
-							<CardTitle className="runescape-panel-title text-2xl">
+
+					<Card className="guild-panel">
+						<CardHeader className="guild-panel-header">
+							<p className="guild-eyebrow text-[0.6rem]">Live Stats</p>
+							<CardTitle className="guild-panel-title text-2xl">
 								World Snapshot
 							</CardTitle>
 						</CardHeader>
-						<CardContent className="grid gap-4">
-							<div className="runescape-stat">
-								<span className="runescape-stat-label">Active Parties</span>
-								<span className="runescape-stat-value">42</span>
+						<CardContent className="grid gap-4 sm:grid-cols-2">
+							<div className="guild-stat">
+								<span className="guild-stat-label">Active Parties</span>
+								<span className="guild-stat-value">42</span>
 							</div>
-							<div className="runescape-stat">
-								<span className="runescape-stat-label">Active Players</span>
-								<span className="runescape-stat-value">137</span>
+							<div className="guild-stat">
+								<span className="guild-stat-label">Active Players</span>
+								<span className="guild-stat-value">137</span>
 							</div>
-							<div className="runescape-stat">
-								<span className="runescape-stat-label">Total Parties</span>
-								<span className="runescape-stat-value">5,248</span>
+							<div className="guild-stat">
+								<span className="guild-stat-label">Total Parties</span>
+								<span className="guild-stat-value">5,248</span>
 							</div>
-							<div className="runescape-stat">
-								<span className="runescape-stat-label">Total Players</span>
-								<span className="runescape-stat-value">18,903</span>
+							<div className="guild-stat">
+								<span className="guild-stat-label">Total Players</span>
+								<span className="guild-stat-value">18,903</span>
 							</div>
 						</CardContent>
-						<Separator className="runescape-divider" />
+						<Separator className="guild-divider" />
 						<CardContent className="pt-0">
-							<ul className="space-y-4 text-sm text-muted-foreground">
+							<ul className="guild-help grid gap-3 text-muted-foreground text-sm">
 								<li>
 									<span className="text-foreground">Party alerts:</span> get
-									notified when your preferred raid opens.
+									pinged the moment a group opens.
 								</li>
 								<li>
 									<span className="text-foreground">Live syncing:</span> the
-									RuneLite plugin keeps your party roster current.
+									RuneLite plugin keeps rosters accurate.
 								</li>
 								<li>
-									<span className="text-foreground">Invite links:</span> share one
-									link for immediate join and voice handoff.
+									<span className="text-foreground">Shareable invites:</span>{" "}
+									send a single link for instant join.
 								</li>
 							</ul>
 						</CardContent>
 					</Card>
 				</section>
 
-				<section className="runescape-grid mt-14 grid gap-6 lg:grid-cols-3">
-					<Card className="runescape-card">
+				<section className="guild-grid grid gap-6 lg:grid-cols-3">
+					<Card className="guild-card">
 						<CardHeader>
-							<CardTitle className="runescape-card-title">
-								1. Find Your Party
+							<CardTitle className="guild-card-title">
+								1. Scout Your Party
 							</CardTitle>
 							<CardDescription>
-								Search by raid, minigame, or clan. Filters surface parties by
-								timezone, world, and preferred role.
+								Filter by activity, region, or role. See who is ready before you
+								commit.
 							</CardDescription>
 						</CardHeader>
 					</Card>
-					<Card className="runescape-card">
+					<Card className="guild-card">
 						<CardHeader>
-							<CardTitle className="runescape-card-title">
+							<CardTitle className="guild-card-title">
 								2. Sync With RuneLite
 							</CardTitle>
 							<CardDescription>
-								The plugin updates your party roster as you hop worlds or swap
-								loadouts. Everyone stays aligned.
+								Roster updates land in real time as members hop worlds or swap
+								loadouts.
 							</CardDescription>
 						</CardHeader>
 					</Card>
-					<Card className="runescape-card">
+					<Card className="guild-card">
 						<CardHeader>
-							<CardTitle className="runescape-card-title">
-								3. Keep the Raid Moving
+							<CardTitle className="guild-card-title">
+								3. Keep the Run Moving
 							</CardTitle>
 							<CardDescription>
-								Post live notes, swap leader roles, and check readiness without
-								leaving the game.
+								Capture notes, keep roles aligned, and hand off leadership
+								without leaving the game.
 							</CardDescription>
 						</CardHeader>
 					</Card>
 				</section>
 
-				<section className="runescape-footer mt-12">
+				<section className="guild-footer">
 					<div>
-						<h2 className="runescape-footer-title text-2xl">
-							Why GroupScape?
+						<h2 className="guild-footer-title text-2xl">
+							Built for every party
 						</h2>
-						<p className="text-sm text-muted-foreground">
-							Built for clans who want clarity without chaos. GroupScape gives
-							you a single place to coordinate, a plugin that keeps you synced,
-							and stats that show the world is alive.
+						<p className="text-muted-foreground text-sm">
+							GroupScape brings order to the chaos. Track every activity, keep
+							the plugin synced, and always know who is ready.
 						</p>
 					</div>
-					<div className="runescape-footer-actions">
+					<div className="guild-footer-actions">
 						<Button
 							variant="secondary"
-							className="runescape-button runescape-button-secondary"
+							className="guild-button guild-button-secondary"
 						>
 							Start a Party
 						</Button>
-						<Button className="runescape-button">Explore Parties</Button>
+						<Button className="guild-button">Explore Parties</Button>
 					</div>
 				</section>
 			</div>
