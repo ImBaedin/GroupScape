@@ -28,7 +28,7 @@ function createAuth(
 		socialProviders: {
 			discord: {
 				enabled: true,
-				clientID: process.env.DISCORD_CLIENT_ID!,
+				clientId: process.env.DISCORD_CLIENT_ID!,
 				clientSecret: process.env.DISCORD_CLIENT_SECRET!,
 			},
 		},

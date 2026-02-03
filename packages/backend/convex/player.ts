@@ -1,3 +1,5 @@
+"use node";
+
 import { v } from "convex/values";
 import { getStatsByGamemode, parseJsonStats } from "osrs-json-hiscores";
 import { action } from "./_generated/server";

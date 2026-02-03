@@ -8,7 +8,7 @@ export const create = mutation({
 		contentName: v.string(),
 		partySizeLimit: v.number(),
 		filters: v.array(
-			v.union([
+			v.union(
 				v.object({
 					type: v.literal("killCount"),
 					value: v.number(),
@@ -26,7 +26,7 @@ export const create = mutation({
 					skill: v.string(),
 					value: v.number(),
 				}),
-			]),
+			),
 		),
 		scheduledTime: v.optional(v.number()),
 	},
@@ -61,4 +61,3 @@ export const create = mutation({
 		return partyId;
 	},
 });
-
