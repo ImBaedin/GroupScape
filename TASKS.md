@@ -275,7 +275,7 @@ Steps:
 Acceptance:
 1. Verified users can request to join from detail view.
 
-- [ ] Task F8: Leader approvals view
+- [x] Task F8: Leader approvals view
 Skills: $frontend-design
 Summary: Allow party owners to approve/reject requests.
 Primary files: `apps/web/src/routes` (new route or party detail), `apps/web/src/components`

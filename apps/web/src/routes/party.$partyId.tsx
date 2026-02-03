@@ -37,6 +37,12 @@ const statusLabels = {
 	verified: "Verified",
 };
 
+type PartyMember = {
+	memberId: Id<"users">;
+	playerAccountId: Id<"playerAccounts">;
+	status: "pending" | "accepted";
+};
+
 export const Route = createFileRoute("/party/$partyId")({
 	component: PartyDetailRoute,
 });
@@ -57,6 +63,7 @@ function PartyDetailRoute() {
 		isAuthenticated ? {} : "skip",
 	);
 	const requestJoin = useMutation(api.parties.requestJoin);
+	const reviewRequest = useMutation(api.parties.reviewRequest);
 	const updateDetails = useMutation(api.parties.updateDetails);
 	const updateStatus = useMutation(api.parties.updateStatus);
 	const removeParty = useMutation(api.parties.remove);
@@ -76,6 +83,7 @@ function PartyDetailRoute() {
 	>(null);
 	const [statusUpdating, setStatusUpdating] = useState(false);
 	const [isClosingParty, setIsClosingParty] = useState(false);
+	const [reviewingKey, setReviewingKey] = useState<string | null>(null);
 
 	useEffect(() => {
 		if (!accounts || accounts.length === 0) return;
@@ -124,6 +132,13 @@ function PartyDetailRoute() {
 	const openSlots = party
 		? Math.max(0, party.partySizeLimit - acceptedCount)
 		: 0;
+	const partyStatus = party?.status ?? "open";
+	const approvalsBlockedReason =
+		partyStatus === "closed"
+			? "Party is closed. Reopen before approving new members."
+			: openSlots <= 0
+				? "Party is full. Reject a request to free up a slot."
+				: null;
 
 	const numberFormatter = useMemo(() => new Intl.NumberFormat(), []);
 	const dateFormatter = useMemo(
@@ -151,7 +166,6 @@ function PartyDetailRoute() {
 	};
 
 	const isVerified = selectedStatus === "verified";
-	const partyStatus = party?.status ?? "open";
 	const canRequest =
 		Boolean(party && selectedAccountId && isAuthenticated) &&
 		partyStatus !== "closed" &&
@@ -285,6 +299,31 @@ function PartyDetailRoute() {
 			toast.error(message);
 		} finally {
 			setIsClosingParty(false);
+		}
+	};
+
+	const handleReviewRequest = async (
+		member: PartyMember,
+		approve: boolean,
+	) => {
+		if (!party) return;
+		const baseKey = `${member.memberId}:${member.playerAccountId}`;
+		const actionKey = `${baseKey}:${approve ? "approve" : "reject"}`;
+		setReviewingKey(actionKey);
+		try {
+			await reviewRequest({
+				partyId: party._id,
+				memberId: member.memberId,
+				playerAccountId: member.playerAccountId,
+				approve,
+			});
+			toast.success(approve ? "Request approved" : "Request declined");
+		} catch (error) {
+			const message =
+				error instanceof Error ? error.message : "Unable to review request";
+			toast.error(message);
+		} finally {
+			setReviewingKey((prev) => (prev === actionKey ? null : prev));
 		}
 	};
 
@@ -660,64 +699,155 @@ function PartyDetailRoute() {
 
 					<div className="party-detail-side">
 						{isOwner ? (
-							<Card className="party-owner-card">
-								<CardHeader>
-									<CardTitle>Leader controls</CardTitle>
-									<CardDescription>
-										Open or close the party, or remove it entirely.
-									</CardDescription>
-								</CardHeader>
-								<CardContent className="party-owner-body">
-									<div className="party-owner-section">
-										<span className="party-owner-label">Party status</span>
-										<div className="party-owner-toggle">
+							<>
+								<Card className="party-owner-card">
+									<CardHeader>
+										<CardTitle>Leader controls</CardTitle>
+										<CardDescription>
+											Open or close the party, or remove it entirely.
+										</CardDescription>
+									</CardHeader>
+									<CardContent className="party-owner-body">
+										<div className="party-owner-section">
+											<span className="party-owner-label">Party status</span>
+											<div className="party-owner-toggle">
+												<Button
+													type="button"
+													variant={
+														partyStatus === "open" ? "default" : "secondary"
+													}
+													disabled={statusUpdating}
+													onClick={() => handleStatusChange("open")}
+												>
+													Open
+												</Button>
+												<Button
+													type="button"
+													variant={
+														partyStatus === "closed" ? "default" : "secondary"
+													}
+													disabled={statusUpdating}
+													onClick={() => handleStatusChange("closed")}
+												>
+													Closed
+												</Button>
+											</div>
+											<p className="party-owner-note text-muted-foreground">
+												Closed parties stop new requests and disappear from the
+												board.
+											</p>
+										</div>
+										<div className="party-owner-section party-owner-danger">
+											<span className="party-owner-label">Close for good</span>
+											<p className="party-owner-note text-muted-foreground">
+												This removes the party and all pending requests.
+											</p>
 											<Button
 												type="button"
-												variant={
-													partyStatus === "open" ? "default" : "secondary"
-												}
-												disabled={statusUpdating}
-												onClick={() => handleStatusChange("open")}
+												variant="destructive"
+												disabled={isClosingParty}
+												onClick={handleCloseParty}
 											>
-												Open
-											</Button>
-											<Button
-												type="button"
-												variant={
-													partyStatus === "closed" ? "default" : "secondary"
-												}
-												disabled={statusUpdating}
-												onClick={() => handleStatusChange("closed")}
-											>
-												Closed
+												{isClosingParty ? (
+													<Loader2 className="h-4 w-4 animate-spin" />
+												) : (
+													<Trash2 className="h-4 w-4" />
+												)}
+												Close party
 											</Button>
 										</div>
-										<p className="party-owner-note text-muted-foreground">
-											Closed parties stop new requests and disappear from the
-											board.
-										</p>
-									</div>
-									<div className="party-owner-section party-owner-danger">
-										<span className="party-owner-label">Close for good</span>
-										<p className="party-owner-note text-muted-foreground">
-											This removes the party and all pending requests.
-										</p>
-										<Button
-											type="button"
-											variant="destructive"
-											disabled={isClosingParty}
-											onClick={handleCloseParty}
-										>
-											{isClosingParty ? (
-												<Loader2 className="h-4 w-4 animate-spin" />
-											) : (
-												<Trash2 className="h-4 w-4" />
-											)}
-											Close party
-										</Button>
-									</div>
-								</CardContent>
-							</Card>
+									</CardContent>
+								</Card>
+								<Card className="party-approval-card">
+									<CardHeader>
+										<CardTitle>Pending approvals</CardTitle>
+										<CardDescription>
+											Review new requests before they join the roster.
+										</CardDescription>
+									</CardHeader>
+									<CardContent className="party-approval-body">
+										{pendingMembers.length === 0 ? (
+											<div className="party-approval-empty">
+												No pending requests yet.
+											</div>
+										) : (
+											<div className="party-approval-list">
+												{pendingMembers.map((member) => {
+													const baseKey = `${member.memberId}:${member.playerAccountId}`;
+													const approveKey = `${baseKey}:approve`;
+													const rejectKey = `${baseKey}:reject`;
+													const isMemberReviewing =
+														reviewingKey?.startsWith(`${baseKey}:`) ?? false;
+													const isApproveLoading =
+														reviewingKey === approveKey;
+													const isRejectLoading = reviewingKey === rejectKey;
+													const disableApprove =
+														isMemberReviewing ||
+														partyStatus === "closed" ||
+														openSlots <= 0;
+													return (
+														<div
+															key={`${member.memberId}-${member.playerAccountId}`}
+															className="party-approval-item"
+														>
+															<div className="party-approval-info">
+																<span className="party-approval-name">
+																	{formatMemberName(member)}
+																</span>
+																<span className="party-approval-meta">
+																	Awaiting leader decision
+																</span>
+															</div>
+															<span className="party-roster-status party-roster-status-pending">
+																<CircleDot className="h-3.5 w-3.5" />
+																Pending
+															</span>
+															<div className="party-approval-actions">
+																<Button
+																	size="sm"
+																	className="party-approval-approve"
+																	disabled={disableApprove}
+																	onClick={() =>
+																		handleReviewRequest(member, true)
+																	}
+																>
+																	{isApproveLoading ? (
+																		<Loader2 className="h-4 w-4 animate-spin" />
+																	) : (
+																		<Check className="h-4 w-4" />
+																	)}
+																	Approve
+																</Button>
+																<Button
+																	size="sm"
+																	variant="secondary"
+																	className="party-approval-reject"
+																	disabled={isMemberReviewing}
+																	onClick={() =>
+																		handleReviewRequest(member, false)
+																	}
+																>
+																	{isRejectLoading ? (
+																		<Loader2 className="h-4 w-4 animate-spin" />
+																	) : (
+																		<X className="h-4 w-4" />
+																	)}
+																	Reject
+																</Button>
+															</div>
+														</div>
+													);
+												})}
+											</div>
+										)}
+										{approvalsBlockedReason && pendingMembers.length > 0 && (
+											<div className="party-approval-warning">
+												{approvalsBlockedReason}
+											</div>
+										)}
+									</CardContent>
+								</Card>
+							</>
 						) : (
 							<Card className="party-join-card">
 								<CardHeader>
