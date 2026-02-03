@@ -44,7 +44,7 @@ export default defineSchema({
 		/**
 		 * Convex storage ID for the account image.
 		 */
-		accountImageStorageId: v.optional(v.string()),
+		accountImageStorageId: v.optional(v.id("_storage")),
 		verificationStatus: v.optional(verificationStatus),
 		verificationChallenge: v.optional(verificationChallenge),
 		lastVerifiedAt: v.optional(v.number()),

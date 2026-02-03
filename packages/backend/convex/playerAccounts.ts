@@ -24,7 +24,7 @@ const playerAccountValidator = v.object({
 	userId: v.id("users"),
 	stats: v.optional(v.id("playerAccountStats")),
 	username: v.string(),
-	accountImageStorageId: v.optional(v.string()),
+	accountImageStorageId: v.optional(v.id("_storage")),
 	verificationStatus: v.optional(verificationStatusValidator),
 	verificationChallenge: v.optional(verificationChallengeValidator),
 	lastVerifiedAt: v.optional(v.number()),
@@ -88,6 +88,31 @@ export const list = query({
 		return accounts.filter(
 			(account): account is Doc<"playerAccounts"> => account !== null,
 		);
+	},
+});
+
+export const getHeadshotUrl = query({
+	args: {
+		accountId: v.id("playerAccounts"),
+	},
+	returns: v.union(v.string(), v.null()),
+	handler: async (ctx, args) => {
+		const user = await requireUser(ctx);
+		const account = await ctx.db.get(args.accountId);
+
+		if (!account) {
+			throw new ConvexError("Account not found");
+		}
+
+		if (account.userId !== user._id) {
+			throw new ConvexError("Not authorized to access this account");
+		}
+
+		if (!account.accountImageStorageId) {
+			return null;
+		}
+
+		return await ctx.storage.getUrl(account.accountImageStorageId);
 	},
 });
 
@@ -171,6 +196,43 @@ export const markVerified = internalMutation({
 			verificationStatus: "verified",
 			lastVerifiedAt: args.lastVerifiedAt,
 		});
+
+		const updated = await ctx.db.get(args.accountId);
+		if (!updated) {
+			throw new ConvexError("Account not found");
+		}
+
+		return updated;
+	},
+});
+
+export const setHeadshotStorageId = mutation({
+	args: {
+		accountId: v.id("playerAccounts"),
+		storageId: v.id("_storage"),
+	},
+	returns: playerAccountValidator,
+	handler: async (ctx, args) => {
+		const user = await requireUser(ctx);
+		const account = await ctx.db.get(args.accountId);
+
+		if (!account) {
+			throw new ConvexError("Account not found");
+		}
+
+		if (account.userId !== user._id) {
+			throw new ConvexError("Not authorized to update this account");
+		}
+
+		const previousStorageId = account.accountImageStorageId;
+
+		await ctx.db.patch(args.accountId, {
+			accountImageStorageId: args.storageId,
+		});
+
+		if (previousStorageId && previousStorageId !== args.storageId) {
+			await ctx.storage.delete(previousStorageId);
+		}
 
 		const updated = await ctx.db.get(args.accountId);
 		if (!updated) {
@@ -266,6 +328,10 @@ const remove = mutation({
 
 		if (account.stats) {
 			await ctx.db.delete(account.stats);
+		}
+
+		if (account.accountImageStorageId) {
+			await ctx.storage.delete(account.accountImageStorageId);
 		}
 
 		await ctx.db.delete(args.accountId);

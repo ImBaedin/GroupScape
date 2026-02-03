@@ -2,7 +2,7 @@ import { api } from "@GroupScape/backend/convex/_generated/api";
 import type { Id } from "@GroupScape/backend/convex/_generated/dataModel";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
-import { Check } from "lucide-react";
+import { Check, ShieldCheck, UserPlus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -25,6 +25,54 @@ function getInitials(name?: string | null) {
 	return `${parts[0]?.[0] ?? ""}${parts[1]?.[0] ?? ""}`.toUpperCase();
 }
 
+function AccountRow({
+	account,
+	isActive,
+	onSelect,
+	disabled,
+}: {
+	account: {
+		_id: Id<"playerAccounts">;
+		username: string;
+		verificationStatus?: "unverified" | "pending" | "verified";
+	};
+	isActive: boolean;
+	onSelect: (accountId: Id<"playerAccounts">) => void;
+	disabled: boolean;
+}) {
+	const headshotUrl = useQuery(api.playerAccounts.getHeadshotUrl, {
+		accountId: account._id,
+	});
+	const initials = getInitials(account.username);
+	const isVerified = account.verificationStatus === "verified";
+
+	return (
+		<DropdownMenuItem
+			onClick={() => onSelect(account._id)}
+			disabled={disabled}
+			className="profile-account-item"
+		>
+			<span className="profile-account-avatar-sm">
+				{headshotUrl ? (
+					<img src={headshotUrl} alt={`${account.username} headshot`} />
+				) : (
+					<span>{initials}</span>
+				)}
+			</span>
+			<span className="profile-account-info">
+				<span className="profile-account-name-sm">{account.username}</span>
+				<span className="profile-account-status-sm">
+					{isVerified ? "Verified" : "Unverified"}
+				</span>
+			</span>
+			{isVerified && (
+				<ShieldCheck className="profile-account-verified h-4 w-4" />
+			)}
+			{isActive && <Check className="profile-account-active h-4 w-4" />}
+		</DropdownMenuItem>
+	);
+}
+
 export default function ProfileBadge() {
 	const { isAuthenticated, isLoading } = useConvexAuth();
 	const user = useQuery(api.auth.getCurrentUser);
@@ -35,6 +83,12 @@ export default function ProfileBadge() {
 	const accounts = useQuery(
 		api.playerAccounts.list,
 		isAuthenticated ? {} : undefined,
+	);
+	const headshotUrl = useQuery(
+		api.playerAccounts.getHeadshotUrl,
+		isAuthenticated && appUser?.activePlayerAccountId
+			? { accountId: appUser.activePlayerAccountId }
+			: "skip",
 	);
 	const setActiveAccount = useMutation(api.users.setActiveAccount);
 	const navigate = useNavigate();
@@ -61,6 +115,7 @@ export default function ProfileBadge() {
 	const activeAccountName =
 		accountList.find((account) => account._id === activeAccountId)?.username ??
 		"Select account";
+	const profileImage = headshotUrl ?? user?.image ?? null;
 
 	const handleSetActiveAccount = async (accountId: Id<"playerAccounts">) => {
 		if (activeAccountId === accountId) return;
@@ -83,8 +138,15 @@ export default function ProfileBadge() {
 		<DropdownMenu>
 			<DropdownMenuTrigger className="profile-badge" type="button">
 				<span className="profile-avatar">
-					{user?.image ? (
-						<img src={user.image} alt={name} />
+					{profileImage ? (
+						<img
+							src={profileImage}
+							alt={
+								headshotUrl
+									? `${activeAccountName} headshot`
+									: name
+							}
+						/>
 					) : (
 						<span>{initials}</span>
 					)}
@@ -96,40 +158,31 @@ export default function ProfileBadge() {
 			</DropdownMenuTrigger>
 			<DropdownMenuContent className="profile-menu" align="end">
 				<DropdownMenuGroup>
-					<DropdownMenuLabel>Signed in</DropdownMenuLabel>
-					<DropdownMenuItem disabled>{name}</DropdownMenuItem>
+					<DropdownMenuLabel>Switch active account</DropdownMenuLabel>
+					{accountList.length === 0 ? (
+						<DropdownMenuItem disabled>Add an account first</DropdownMenuItem>
+					) : (
+						accountList.map((account) => (
+							<AccountRow
+								key={account._id}
+								account={account}
+								isActive={activeAccountId === account._id}
+								onSelect={handleSetActiveAccount}
+								disabled={activeUpdatingId !== null}
+							/>
+						))
+					)}
 				</DropdownMenuGroup>
 				<DropdownMenuSeparator />
 				<DropdownMenuGroup>
-					<DropdownMenuLabel>Account</DropdownMenuLabel>
 					<DropdownMenuItem
 						onClick={() => {
 							navigate({ to: "/profile" });
 						}}
 					>
-						Profile
+						<UserPlus className="h-4 w-4" />
+						Link new account
 					</DropdownMenuItem>
-				</DropdownMenuGroup>
-				<DropdownMenuSeparator />
-				<DropdownMenuGroup>
-					<DropdownMenuLabel>Active account</DropdownMenuLabel>
-					{accountList.length === 0 ? (
-						<DropdownMenuItem disabled>Add an account first</DropdownMenuItem>
-					) : (
-						accountList.map((account) => (
-							<DropdownMenuItem
-								key={account._id}
-								onClick={() => handleSetActiveAccount(account._id)}
-								disabled={activeUpdatingId !== null}
-								className="justify-between"
-							>
-								<span>{account.username}</span>
-								{activeAccountId === account._id && (
-									<Check className="h-4 w-4" />
-								)}
-							</DropdownMenuItem>
-						))
-					)}
 				</DropdownMenuGroup>
 				<DropdownMenuSeparator />
 				<DropdownMenuGroup>

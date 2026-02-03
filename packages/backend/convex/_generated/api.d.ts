@@ -9,6 +9,7 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as headshots from "../headshots.js";
 import type * as healthCheck from "../healthCheck.js";
 import type * as http from "../http.js";
 import type * as osrsHiscores from "../osrsHiscores.js";
@@ -29,6 +30,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  headshots: typeof headshots;
   healthCheck: typeof healthCheck;
   http: typeof http;
   osrsHiscores: typeof osrsHiscores;

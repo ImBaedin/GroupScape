@@ -3,6 +3,7 @@ import type { Id } from "@GroupScape/backend/convex/_generated/dataModel";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react";
 import {
+	Camera,
 	Check,
 	CheckCircle2,
 	ChevronDown,
@@ -18,6 +19,7 @@ import {
 } from "lucide-react";
 import { type FormEvent, useMemo, useState } from "react";
 import { toast } from "sonner";
+import HeadshotSelector from "@/components/headshot-selector";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
 	Card,
@@ -76,6 +78,16 @@ type VerificationState = {
 const formatSkillLabel = (skill: string) =>
 	skill ? `${skill[0].toUpperCase()}${skill.slice(1)}` : "";
 
+const getAccountInitials = (username: string) => {
+	const base = username.trim();
+	if (!base) return "GS";
+	const parts = base.split(/\s+/).filter(Boolean);
+	if (parts.length === 1) {
+		return parts[0]?.slice(0, 2).toUpperCase();
+	}
+	return `${parts[0]?.[0] ?? ""}${parts[1]?.[0] ?? ""}`.toUpperCase();
+};
+
 const formatRemaining = (remainingMs: number) => {
 	const totalSeconds = Math.max(0, Math.floor(remainingMs / 1000));
 	const minutes = Math.floor(totalSeconds / 60);
@@ -88,6 +100,34 @@ const formatRemaining = (remainingMs: number) => {
 export const Route = createFileRoute("/profile")({
 	component: ProfileRoute,
 });
+
+function AccountHeadshot({
+	accountId,
+	username,
+}: {
+	accountId: Id<"playerAccounts">;
+	username: string;
+}) {
+	const headshotUrl = useQuery(api.playerAccounts.getHeadshotUrl, {
+		accountId,
+	});
+	const initials = getAccountInitials(username);
+
+	return (
+		<div
+			className={cn(
+				"profile-account-avatar",
+				headshotUrl ? "profile-account-avatar-image" : undefined,
+			)}
+		>
+			{headshotUrl ? (
+				<img src={headshotUrl} alt={`${username} headshot`} />
+			) : (
+				<span>{initials}</span>
+			)}
+		</div>
+	);
+}
 
 function ProfileRoute() {
 	const { isAuthenticated, isLoading } = useConvexAuth();
@@ -105,6 +145,7 @@ function ProfileRoute() {
 	const setActiveAccount = useMutation(api.users.setActiveAccount);
 	const startVerification = useAction(api.verification.start);
 	const verifyAccount = useAction(api.verification.verify);
+	const saveHeadshot = useAction(api.headshots.saveHeadshot);
 
 	const [username, setUsername] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -114,6 +155,15 @@ function ProfileRoute() {
 	const [activeUpdatingId, setActiveUpdatingId] = useState<
 		Id<"playerAccounts"> | null
 	>(null);
+	const [headshotEditingId, setHeadshotEditingId] = useState<
+		Id<"playerAccounts"> | null
+	>(null);
+	const [headshotSavingId, setHeadshotSavingId] = useState<
+		Id<"playerAccounts"> | null
+	>(null);
+	const [headshotErrors, setHeadshotErrors] = useState<
+		Record<string, string | undefined>
+	>({});
 	const [verificationState, setVerificationState] = useState<
 		Record<string, VerificationState>
 	>({});
@@ -265,6 +315,27 @@ function ProfileRoute() {
 			toast.error(message);
 		} finally {
 			updateVerificationState(accountId, { isVerifying: false });
+		}
+	};
+
+	const handleHeadshotCapture = async (
+		accountId: Id<"playerAccounts">,
+		imageData: string,
+	) => {
+		if (headshotSavingId === accountId) return;
+		setHeadshotSavingId(accountId);
+		setHeadshotErrors((prev) => ({ ...prev, [accountId]: undefined }));
+		try {
+			await saveHeadshot({ accountId, imageData });
+			toast.success("Headshot saved");
+			setHeadshotEditingId(null);
+		} catch (error) {
+			const message =
+				error instanceof Error ? error.message : "Unable to save headshot";
+			setHeadshotErrors((prev) => ({ ...prev, [accountId]: message }));
+			toast.error(message);
+		} finally {
+			setHeadshotSavingId((prev) => (prev === accountId ? null : prev));
 		}
 	};
 
@@ -542,42 +613,109 @@ function ProfileRoute() {
 										const verifiedAt = account.lastVerifiedAt
 											? dateFormatter.format(new Date(account.lastVerifiedAt))
 											: null;
+										const isHeadshotOpen =
+											headshotEditingId === account._id;
+										const isHeadshotSaving =
+											headshotSavingId === account._id;
+										const headshotError = headshotErrors[account._id];
+										const hasHeadshot = Boolean(
+											account.accountImageStorageId,
+										);
 										return (
 											<div key={account._id} className="profile-account-card">
 												<div className="profile-account-header">
-													<div>
-														<p className="profile-account-name">
-															{account.username}
-														</p>
-														<span
-															className={`account-status account-status-${status}`}
-														>
-															{status === "verified" ? (
-																<ShieldCheck className="h-3.5 w-3.5" />
-															) : status === "pending" ? (
-																<ShieldAlert className="h-3.5 w-3.5" />
-															) : (
-																<ShieldQuestion className="h-3.5 w-3.5" />
-															)}
-															{statusLabel}
-														</span>
+													<div className="profile-account-identity">
+														<AccountHeadshot
+															accountId={account._id}
+															username={account.username}
+														/>
+														<div>
+															<p className="profile-account-name">
+																{account.username}
+															</p>
+															<span
+																className={`account-status account-status-${status}`}
+															>
+																{status === "verified" ? (
+																	<ShieldCheck className="h-3.5 w-3.5" />
+																) : status === "pending" ? (
+																	<ShieldAlert className="h-3.5 w-3.5" />
+																) : (
+																	<ShieldQuestion className="h-3.5 w-3.5" />
+																)}
+																{statusLabel}
+															</span>
+														</div>
 													</div>
-													<Button
-														variant="ghost"
-														size="icon"
-														className="profile-remove"
-														aria-label={`Remove ${account.username}`}
-														disabled={deletingId === account._id}
-														onClick={() =>
-															handleDeleteAccount(account._id, account.username)
-														}
-													>
-														<Trash2 className="h-4 w-4" />
-													</Button>
+													<div className="profile-account-actions">
+														<Button
+															variant="secondary"
+															className="profile-secondary profile-headshot-button"
+															disabled={isHeadshotSaving}
+															onClick={() =>
+																setHeadshotEditingId((prev) =>
+																	prev === account._id ? null : account._id,
+																)
+															}
+														>
+															<Camera className="h-4 w-4" />
+															{isHeadshotOpen
+																? "Hide Headshot"
+																: hasHeadshot
+																	? "Update Headshot"
+																	: "Add Headshot"}
+														</Button>
+														<Button
+															variant="ghost"
+															size="icon"
+															className="profile-remove"
+															aria-label={`Remove ${account.username}`}
+															disabled={deletingId === account._id}
+															onClick={() =>
+																handleDeleteAccount(
+																	account._id,
+																	account.username,
+																)
+															}
+														>
+															<Trash2 className="h-4 w-4" />
+														</Button>
+													</div>
 												</div>
 												<p className="profile-account-meta">
 													Status: {statusLabel}
 												</p>
+												{isHeadshotOpen && (
+													<div className="profile-headshot-panel">
+														<div className="profile-headshot-header">
+															<div>
+																<p className="profile-headshot-title">
+																	Headshot capture
+																</p>
+																<p className="profile-headshot-subtitle">
+																	Frame your character and capture a fresh badge
+																	image.
+																</p>
+															</div>
+															{isHeadshotSaving && (
+																<span className="profile-headshot-status">
+																	Saving...
+																</span>
+															)}
+														</div>
+														{headshotError && (
+															<div className="profile-headshot-error">
+																{headshotError}
+															</div>
+														)}
+														<HeadshotSelector
+															username={account.username}
+															onComplete={(imageData) =>
+																handleHeadshotCapture(account._id, imageData)
+															}
+														/>
+													</div>
+												)}
 												<div className="profile-verification-panel">
 													<div className="profile-verification-header">
 														<div>

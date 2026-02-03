@@ -67,7 +67,7 @@ Steps:
 Acceptance:
 1. User can add/list/delete accounts safely.
 
-- [ ] Task B5: Headshot storage
+- [x] Task B5: Headshot storage
 Skills: $convex-functions, $convex-file-storage
 Summary: Store headshot image data in Convex file storage and save the storage id.
 Primary files: `packages/backend/convex` (new file or `playerAccounts.ts`), `packages/backend/convex/schema.ts`
@@ -212,7 +212,7 @@ Steps:
 Acceptance:
 1. Users can add/list/delete accounts in UI.
 
-- [ ] Task F3: Headshot integration
+- [x] Task F3: Headshot integration
 Skills: $frontend-design
 Summary: Use existing headshot selector and save to backend.
 Primary files: `apps/web/src/components/headshot-selector.tsx`, new profile components
