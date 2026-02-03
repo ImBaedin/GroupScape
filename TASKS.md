@@ -107,7 +107,7 @@ Steps:
 Acceptance:
 1. Starting verification sets a challenge and returns clear instructions.
 
-- [ ] Task B8: Verify account
+- [x] Task B8: Verify account
 Skills: $convex-functions
 Summary: Confirm XP delta and mark account verified.
 Primary files: `packages/backend/convex/playerAccounts.ts` or `packages/backend/convex/verification.ts`
@@ -121,7 +121,7 @@ Steps:
 Acceptance:
 1. Verified accounts are correctly flagged when XP delta matches.
 
-- [ ] Task B9: Retry window enforcement
+- [x] Task B9: Retry window enforcement
 Skills: $convex-functions
 Summary: Keep same challenge for 15 minutes, allow retries.
 Primary files: `packages/backend/convex/playerAccounts.ts` or `packages/backend/convex/verification.ts`

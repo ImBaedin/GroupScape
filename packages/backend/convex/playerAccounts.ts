@@ -14,6 +14,8 @@ const verificationChallengeValidator = v.object({
 	expectedXp: v.number(),
 	baselineXp: v.number(),
 	issuedAt: v.number(),
+	resourceId: v.optional(v.string()),
+	amount: v.optional(v.number()),
 });
 
 const playerAccountValidator = v.object({
@@ -32,6 +34,7 @@ const playerAccountVerificationInfoValidator = v.object({
 	_id: v.id("playerAccounts"),
 	username: v.string(),
 	verificationStatus: v.optional(verificationStatusValidator),
+	verificationChallenge: v.optional(verificationChallengeValidator),
 });
 
 const normalizeUsername = (username: string) => username.trim();
@@ -97,6 +100,7 @@ export const getForVerification = internalQuery({
 			_id: account._id,
 			username: account.username,
 			verificationStatus: account.verificationStatus,
+			verificationChallenge: account.verificationChallenge,
 		};
 	},
 });
@@ -122,6 +126,38 @@ export const setVerificationChallenge = internalMutation({
 		await ctx.db.patch(args.accountId, {
 			verificationStatus: "pending",
 			verificationChallenge: args.challenge,
+		});
+
+		const updated = await ctx.db.get(args.accountId);
+		if (!updated) {
+			throw new ConvexError("Account not found");
+		}
+
+		return updated;
+	},
+});
+
+export const markVerified = internalMutation({
+	args: {
+		accountId: v.id("playerAccounts"),
+		lastVerifiedAt: v.number(),
+	},
+	returns: playerAccountValidator,
+	handler: async (ctx, args) => {
+		const user = await requireUser(ctx);
+		const account = await ctx.db.get(args.accountId);
+
+		if (!account) {
+			throw new ConvexError("Account not found");
+		}
+
+		if (account.userId !== user._id) {
+			throw new ConvexError("Not authorized to update this account");
+		}
+
+		await ctx.db.patch(args.accountId, {
+			verificationStatus: "verified",
+			lastVerifiedAt: args.lastVerifiedAt,
 		});
 
 		const updated = await ctx.db.get(args.accountId);

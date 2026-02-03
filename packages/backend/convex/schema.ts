@@ -13,6 +13,8 @@ const verificationChallenge = v.object({
 	expectedXp: v.number(),
 	baselineXp: v.number(),
 	issuedAt: v.number(),
+	resourceId: v.optional(v.string()),
+	amount: v.optional(v.number()),
 });
 
 export default defineSchema({

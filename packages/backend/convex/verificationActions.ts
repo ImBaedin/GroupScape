@@ -282,6 +282,39 @@ const buildTask = (
 	};
 };
 
+const getGroupForSkill = (skill: VerificationSkill) =>
+	VERIFICATION_GROUPS.find((group) => group.skill === skill);
+
+export const getInstructionForChallenge = (
+	skill: VerificationSkill,
+	expectedXp: number,
+	resourceId?: string,
+	amount?: number,
+): string | null => {
+	const group = getGroupForSkill(skill);
+	if (!group) {
+		return null;
+	}
+
+	if (resourceId && amount) {
+		const resource = group.resources.find((item) => item.id === resourceId);
+		if (resource) {
+			return formatInstruction(group, resource, amount);
+		}
+	}
+
+	for (const resource of group.resources) {
+		const counts = getCountOptions(resource);
+		for (const count of counts) {
+			if (Math.round(resource.xpPerUnit * count) === expectedXp) {
+				return formatInstruction(group, resource, count);
+			}
+		}
+	}
+
+	return null;
+};
+
 export const getVerificationTasks = (
 	skills: SkillSnapshots,
 	taskCount = 2,
