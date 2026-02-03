@@ -15,7 +15,7 @@ export default function Header() {
 			<div className="app-header-inner">
 				<Link to="/" className="app-brand">
 					<img
-						src="/logo.png"
+						src="/square-logo.jpg"
 						alt="GroupScape"
 						className="h-10 w-10 rounded-full border border-border/60"
 					/>

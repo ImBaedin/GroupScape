@@ -29,7 +29,7 @@ export default function UserMenu() {
 		<DropdownMenuContent className="bg-card">
 			<DropdownMenuGroup>
 				<DropdownMenuLabel>My Account</DropdownMenuLabel>
-				<DropdownMenuItem>{user?.email}</DropdownMenuItem>
+				<DropdownMenuItem>{user?.name ?? "Signed in"}</DropdownMenuItem>
 			</DropdownMenuGroup>
 			<DropdownMenuSeparator />
 			<DropdownMenuGroup>

@@ -121,6 +121,7 @@ body {
 	--rs-gold-deep: oklch(0.7 0.15 55);
 	--rs-border: oklch(0.78 0.08 65);
 	--rs-glow: oklch(0.8 0.05 70 / 0.6);
+	--rs-ember: oklch(0.68 0.18 35);
 }
 
 .dark {
@@ -163,6 +164,7 @@ body {
 	--rs-gold-deep: oklch(0.65 0.14 55);
 	--rs-border: oklch(0.45 0.08 55);
 	--rs-glow: oklch(0.4 0.1 60 / 0.5);
+	--rs-ember: oklch(0.66 0.19 35);
 }
 
 @layer base {
@@ -1226,6 +1228,39 @@ body {
 	color: var(--rs-ink-muted);
 }
 
+.profile-active {
+	margin-top: 0.5rem;
+	display: grid;
+	gap: 0.35rem;
+	text-align: left;
+}
+
+.profile-active-label {
+	font-size: 0.6rem;
+	letter-spacing: 0.28em;
+	text-transform: uppercase;
+	color: var(--rs-ink-muted);
+}
+
+.profile-active-trigger {
+	justify-content: space-between;
+	gap: 0.6rem;
+	padding: 0.35rem 0.65rem;
+	border-radius: 12px;
+	width: 100%;
+	box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.35);
+}
+
+.profile-active-name {
+	font-size: 0.8rem;
+	font-weight: 600;
+	color: var(--rs-ink);
+}
+
+.profile-active-item {
+	justify-content: space-between;
+}
+
 .profile-subtitle {
 	max-width: 40rem;
 }
@@ -1362,6 +1397,149 @@ body {
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
 	color: var(--rs-ink-muted);
+}
+
+.profile-verification-panel {
+	margin-top: 0.5rem;
+	padding: 1rem 1.1rem;
+	border-radius: 16px;
+	background: color-mix(in oklch, var(--rs-paper) 86%, transparent);
+	border: 1px solid color-mix(in oklch, var(--rs-border) 65%, transparent);
+	display: grid;
+	gap: 0.75rem;
+	box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.3);
+}
+
+.profile-verification-header {
+	display: flex;
+	justify-content: space-between;
+	gap: 1rem;
+	align-items: flex-start;
+}
+
+.profile-verification-eyebrow {
+	font-size: 0.6rem;
+	letter-spacing: 0.28em;
+	text-transform: uppercase;
+	color: var(--rs-ink-muted);
+}
+
+.profile-verification-title {
+	font-weight: 700;
+	color: var(--rs-ink);
+	max-width: 16rem;
+}
+
+.profile-verification-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	padding: 0.3rem 0.7rem;
+	border-radius: 999px;
+	font-size: 0.6rem;
+	letter-spacing: 0.2em;
+	text-transform: uppercase;
+	border: 1px solid transparent;
+	white-space: nowrap;
+}
+
+.profile-verification-badge-verified {
+	background: color-mix(in oklch, var(--rs-gold) 65%, transparent);
+	color: color-mix(in oklch, var(--rs-ink) 90%, #000);
+	border-color: color-mix(in oklch, var(--rs-gold-deep) 50%, transparent);
+}
+
+.profile-verification-badge-pending {
+	background: color-mix(in oklch, var(--rs-paper-deep) 50%, transparent);
+	color: var(--rs-ink);
+	border-color: color-mix(in oklch, var(--rs-border) 55%, transparent);
+}
+
+.profile-verification-badge-unverified {
+	background: color-mix(in oklch, var(--rs-paper) 70%, transparent);
+	color: var(--rs-ink-muted);
+	border-color: color-mix(in oklch, var(--rs-border) 45%, transparent);
+}
+
+.profile-verification-verified {
+	display: grid;
+	gap: 0.35rem;
+	font-size: 0.85rem;
+	color: var(--rs-ink);
+}
+
+.profile-verification-verified span {
+	font-size: 0.7rem;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	color: var(--rs-ink-muted);
+}
+
+.profile-verification-body {
+	display: grid;
+	gap: 0.75rem;
+}
+
+.profile-verification-instructions {
+	font-size: 0.9rem;
+	color: var(--rs-ink);
+}
+
+.profile-verification-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.6rem 1rem;
+	font-size: 0.65rem;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	color: var(--rs-ink-muted);
+}
+
+.profile-verification-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.6rem;
+}
+
+.profile-verify-button,
+.profile-verify-secondary {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.45rem;
+}
+
+.profile-verification-result {
+	padding: 0.6rem 0.75rem;
+	border-radius: 12px;
+	font-size: 0.8rem;
+	line-height: 1.4;
+	border: 1px solid transparent;
+	background: color-mix(in oklch, var(--rs-paper) 85%, transparent);
+	color: var(--rs-ink);
+}
+
+.profile-verification-result-verified {
+	border-color: color-mix(in oklch, var(--rs-gold) 55%, transparent);
+	background: color-mix(in oklch, var(--rs-gold) 20%, transparent);
+}
+
+.profile-verification-result-pending {
+	border-color: color-mix(in oklch, var(--rs-border) 55%, transparent);
+}
+
+.profile-verification-result-expired {
+	border-color: color-mix(in oklch, var(--rs-ember) 45%, transparent);
+	background: color-mix(in oklch, var(--rs-ember) 12%, transparent);
+	color: color-mix(in oklch, var(--rs-ink) 80%, #000);
+}
+
+.profile-verification-error {
+	font-size: 0.8rem;
+	padding: 0.6rem 0.75rem;
+	border-radius: 12px;
+	border: 1px solid color-mix(in oklch, var(--rs-ember) 45%, transparent);
+	color: color-mix(in oklch, var(--rs-ember) 70%, #000);
+	background: color-mix(in oklch, var(--rs-ember) 12%, transparent);
 }
 
 .account-status {

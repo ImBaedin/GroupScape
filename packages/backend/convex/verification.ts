@@ -39,7 +39,7 @@ type VerificationResult = {
 	remainingMs?: number;
 };
 
-const VERIFICATION_WINDOW_MS = 15 * 60 * 1000;
+const VERIFICATION_WINDOW_MS = 5 * 60 * 1000;
 
 const buildSkillSnapshots = (stats: Stats): SkillSnapshots => ({
 	woodcutting: {

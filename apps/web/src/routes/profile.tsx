@@ -1,16 +1,22 @@
 import { api } from "@GroupScape/backend/convex/_generated/api";
 import type { Id } from "@GroupScape/backend/convex/_generated/dataModel";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react";
 import {
+	Check,
+	CheckCircle2,
+	ChevronDown,
+	Clock3,
 	Loader2,
+	RefreshCw,
+	ShieldAlert,
 	ShieldCheck,
 	ShieldQuestion,
-	ShieldAlert,
+	Sparkles,
 	Trash2,
 	UserPlus,
 } from "lucide-react";
-import { useMemo, useState, type FormEvent } from "react";
+import { type FormEvent, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -20,6 +26,14 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuGroup,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -30,7 +44,46 @@ const statusLabels = {
 	verified: "Verified",
 };
 
+const VERIFICATION_WINDOW_MS = 5 * 60 * 1000;
+
 type VerificationStatus = keyof typeof statusLabels;
+
+type VerificationChallenge = {
+	skill: string;
+	expectedXp: number;
+	baselineXp: number;
+	issuedAt: number;
+	resourceId?: string;
+	amount?: number;
+};
+
+type VerificationResult = {
+	status: "verified" | "pending" | "expired";
+	deltaXp: number;
+	expectedXp: number;
+	remainingMs?: number;
+};
+
+type VerificationState = {
+	instructions?: string;
+	challenge?: VerificationChallenge;
+	result?: VerificationResult;
+	isStarting?: boolean;
+	isVerifying?: boolean;
+	error?: string;
+};
+
+const formatSkillLabel = (skill: string) =>
+	skill ? `${skill[0].toUpperCase()}${skill.slice(1)}` : "";
+
+const formatRemaining = (remainingMs: number) => {
+	const totalSeconds = Math.max(0, Math.floor(remainingMs / 1000));
+	const minutes = Math.floor(totalSeconds / 60);
+	const seconds = totalSeconds % 60;
+	if (minutes === 0) return `${seconds}s`;
+	if (seconds === 0) return `${minutes}m`;
+	return `${minutes}m ${seconds}s`;
+};
 
 export const Route = createFileRoute("/profile")({
 	component: ProfileRoute,
@@ -39,20 +92,37 @@ export const Route = createFileRoute("/profile")({
 function ProfileRoute() {
 	const { isAuthenticated, isLoading } = useConvexAuth();
 	const user = useQuery(api.auth.getCurrentUser);
+	const appUser = useQuery(
+		api.users.getCurrent,
+		isAuthenticated ? {} : undefined,
+	);
 	const accounts = useQuery(
 		api.playerAccounts.list,
 		isAuthenticated ? {} : undefined,
 	);
 	const addAccount = useMutation(api.playerAccounts.add);
 	const deleteAccount = useMutation(api.playerAccounts.delete);
+	const setActiveAccount = useMutation(api.users.setActiveAccount);
+	const startVerification = useAction(api.verification.start);
+	const verifyAccount = useAction(api.verification.verify);
 
 	const [username, setUsername] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [deletingId, setDeletingId] = useState<Id<"playerAccounts"> | null>(
 		null,
 	);
+	const [activeUpdatingId, setActiveUpdatingId] = useState<
+		Id<"playerAccounts"> | null
+	>(null);
+	const [verificationState, setVerificationState] = useState<
+		Record<string, VerificationState>
+	>({});
 
 	const accountList = accounts ?? [];
+	const activeAccountId = appUser?.activePlayerAccountId ?? null;
+	const activeAccount = activeAccountId
+		? accountList.find((account) => account._id === activeAccountId) ?? null
+		: null;
 	const stats = useMemo(() => {
 		const counts = {
 			total: accountList.length,
@@ -67,6 +137,28 @@ function ProfileRoute() {
 		}
 		return counts;
 	}, [accountList]);
+	const numberFormatter = useMemo(() => new Intl.NumberFormat(), []);
+	const dateFormatter = useMemo(
+		() =>
+			new Intl.DateTimeFormat(undefined, {
+				dateStyle: "medium",
+				timeStyle: "short",
+			}),
+		[],
+	);
+
+	const updateVerificationState = (
+		accountId: Id<"playerAccounts">,
+		updates: Partial<VerificationState>,
+	) => {
+		setVerificationState((prev) => ({
+			...prev,
+			[accountId]: {
+				...prev[accountId],
+				...updates,
+			},
+		}));
+	};
 
 	const handleAddAccount = async (event: FormEvent) => {
 		event.preventDefault();
@@ -106,6 +198,73 @@ function ProfileRoute() {
 			toast.error(message);
 		} finally {
 			setDeletingId(null);
+		}
+	};
+
+	const handleSetActiveAccount = async (
+		accountId: Id<"playerAccounts">,
+	) => {
+		if (activeAccountId === accountId) return;
+		setActiveUpdatingId(accountId);
+		try {
+			await setActiveAccount({ accountId });
+			toast.success("Active account updated");
+		} catch (error) {
+			const message =
+				error instanceof Error
+					? error.message
+					: "Unable to update active account";
+			toast.error(message);
+		} finally {
+			setActiveUpdatingId(null);
+		}
+	};
+
+	const handleStartVerification = async (accountId: Id<"playerAccounts">) => {
+		updateVerificationState(accountId, {
+			isStarting: true,
+			error: undefined,
+			result: undefined,
+		});
+		try {
+			const response = await startVerification({ accountId });
+			updateVerificationState(accountId, {
+				instructions: response.instructions,
+				challenge: response.challenge,
+			});
+			toast.success("Verification task ready");
+		} catch (error) {
+			const message =
+				error instanceof Error ? error.message : "Unable to start verification";
+			updateVerificationState(accountId, { error: message });
+			toast.error(message);
+		} finally {
+			updateVerificationState(accountId, { isStarting: false });
+		}
+	};
+
+	const handleVerifyAccount = async (accountId: Id<"playerAccounts">) => {
+		updateVerificationState(accountId, {
+			isVerifying: true,
+			error: undefined,
+		});
+		try {
+			const result = await verifyAccount({ accountId });
+			updateVerificationState(accountId, { result });
+			if (result.status === "verified") {
+				toast.success("Account verified");
+			} else if (result.status === "expired") {
+				toast.warning("Verification challenge expired");
+			} else {
+				toast.info("Hiscores not updated yet. Try again soon.");
+			}
+		} catch (error) {
+			const message =
+				error instanceof Error ? error.message : "Unable to verify account";
+			updateVerificationState(accountId, { error: message });
+			toast.error(message);
+		} finally {
+			updateVerificationState(accountId, { isVerifying: false });
 		}
 	};
 
@@ -157,7 +316,7 @@ function ProfileRoute() {
 	}
 
 	return (
-		<div className="profile-page min-h-[calc(100svh-4rem)] px-4 pb-20 pt-10 sm:px-8">
+		<div className="profile-page min-h-[calc(100svh-4rem)] px-4 pt-10 pb-20 sm:px-8">
 			<div className="profile-shell mx-auto max-w-6xl">
 				<header className="profile-header">
 					<div className="profile-header-top">
@@ -172,9 +331,56 @@ function ProfileRoute() {
 							<span className="profile-user-name">
 								{user?.name ?? "Adventurer"}
 							</span>
-							<span className="profile-user-email">
-								{user?.email ?? "Connected"}
-							</span>
+							<div className="profile-active">
+								<span className="profile-active-label">Active account</span>
+								<DropdownMenu>
+									<DropdownMenuTrigger
+										type="button"
+										disabled={accountList.length === 0}
+										className={cn(
+											buttonVariants({ variant: "secondary", size: "sm" }),
+											"profile-active-trigger",
+										)}
+									>
+										<span className="profile-active-name">
+											{activeAccount?.username ?? "Select account"}
+										</span>
+										{activeUpdatingId ? (
+											<Loader2 className="h-3.5 w-3.5 animate-spin" />
+										) : (
+											<ChevronDown className="h-3.5 w-3.5" />
+										)}
+									</DropdownMenuTrigger>
+									<DropdownMenuContent align="end">
+										<DropdownMenuLabel>
+											Choose active account
+										</DropdownMenuLabel>
+										<DropdownMenuGroup>
+											{accountList.length === 0 ? (
+												<DropdownMenuItem disabled>
+													Add an account first
+												</DropdownMenuItem>
+											) : (
+												accountList.map((account) => (
+													<DropdownMenuItem
+														key={account._id}
+														onClick={() =>
+															handleSetActiveAccount(account._id)
+														}
+														disabled={activeUpdatingId !== null}
+														className="profile-active-item"
+													>
+														<span>{account.username}</span>
+														{activeAccountId === account._id && (
+															<Check className="h-4 w-4" />
+														)}
+													</DropdownMenuItem>
+												))
+											)}
+										</DropdownMenuGroup>
+									</DropdownMenuContent>
+								</DropdownMenu>
+							</div>
 						</div>
 					</div>
 					<p className="profile-subtitle text-lg text-muted-foreground">
@@ -203,15 +409,12 @@ function ProfileRoute() {
 							<CardHeader>
 								<CardTitle>Link a new account</CardTitle>
 								<CardDescription>
-									Add the OSRS username you want to verify and use for
-									party invites.
+									Add the OSRS username you want to verify and use for party
+									invites.
 								</CardDescription>
 							</CardHeader>
 							<CardContent>
-								<form
-									onSubmit={handleAddAccount}
-									className="profile-form"
-								>
+								<form onSubmit={handleAddAccount} className="profile-form">
 									<div className="space-y-2">
 										<Label htmlFor="username">OSRS Username</Label>
 										<Input
@@ -245,7 +448,9 @@ function ProfileRoute() {
 							<CardContent>
 								<ul className="profile-guidance-list">
 									<li>Start verification to receive a single XP task.</li>
-									<li>Complete the task in-game, then re-check within 15 minutes.</li>
+									<li>
+										Complete the task in-game, then re-check within 5 minutes.
+									</li>
 									<li>Repeat anytime to refresh your verification status.</li>
 								</ul>
 							</CardContent>
@@ -275,15 +480,70 @@ function ProfileRoute() {
 							) : (
 								<div className="profile-account-grid">
 									{accountList.map((account) => {
-										const status =
-											(account.verificationStatus ??
-												"unverified") as VerificationStatus;
+										const status = (account.verificationStatus ??
+											"unverified") as VerificationStatus;
 										const statusLabel = statusLabels[status];
+										const accountState = verificationState[account._id] ?? {};
+										const challenge =
+											accountState.challenge ?? account.verificationChallenge;
+										const now = Date.now();
+										const challengeAgeMs = challenge
+											? Math.max(0, now - challenge.issuedAt)
+											: 0;
+										const computedRemainingMs = challenge
+											? Math.max(0, VERIFICATION_WINDOW_MS - challengeAgeMs)
+											: undefined;
+										const resultRemainingMs = accountState.result?.remainingMs;
+										const remainingMs =
+											resultRemainingMs ?? computedRemainingMs;
+										const isExpired = Boolean(
+											accountState.result?.status === "expired" ||
+												(challenge && remainingMs === 0),
+										);
+										const canStart = status !== "verified";
+										const canVerify =
+											status === "pending" && Boolean(challenge) && !isExpired;
+										const startLabel =
+											status === "pending"
+												? isExpired
+													? "New Task"
+													: "Refresh Task"
+												: "Start Verification";
+										const instructions = accountState.instructions;
+										const fallbackInstructions =
+											status === "pending"
+												? "Use the task you were given earlier. Refresh to pull the exact instructions again."
+												: "Start verification to receive a single XP task you can complete in-game.";
+										const instructionText =
+											instructions ?? fallbackInstructions;
+										const result = accountState.result;
+										const resultMessage = (() => {
+											if (!result) return null;
+											if (result.status === "verified") {
+												return `Verified. Gained ${numberFormatter.format(
+													result.deltaXp,
+												)} XP (target ${numberFormatter.format(
+													result.expectedXp,
+												)}).`;
+											}
+											if (result.status === "expired") {
+												return "Challenge expired. Start a new verification task.";
+											}
+											const timeLabel =
+												remainingMs !== undefined
+													? formatRemaining(remainingMs)
+													: "a few minutes";
+											return `Hiscores not updated yet. ${numberFormatter.format(
+												result.deltaXp,
+											)} / ${numberFormatter.format(
+												result.expectedXp,
+											)} XP logged. Try again within ${timeLabel}.`;
+										})();
+										const verifiedAt = account.lastVerifiedAt
+											? dateFormatter.format(new Date(account.lastVerifiedAt))
+											: null;
 										return (
-											<div
-												key={account._id}
-												className="profile-account-card"
-											>
+											<div key={account._id} className="profile-account-card">
 												<div className="profile-account-header">
 													<div>
 														<p className="profile-account-name">
@@ -309,10 +569,7 @@ function ProfileRoute() {
 														aria-label={`Remove ${account.username}`}
 														disabled={deletingId === account._id}
 														onClick={() =>
-															handleDeleteAccount(
-																account._id,
-																account.username,
-															)
+															handleDeleteAccount(account._id, account.username)
 														}
 													>
 														<Trash2 className="h-4 w-4" />
@@ -321,6 +578,125 @@ function ProfileRoute() {
 												<p className="profile-account-meta">
 													Status: {statusLabel}
 												</p>
+												<div className="profile-verification-panel">
+													<div className="profile-verification-header">
+														<div>
+															<p className="profile-verification-eyebrow">
+																Verification Task
+															</p>
+															<p className="profile-verification-title">
+																{status === "verified"
+																	? "Account ready for party invites"
+																	: isExpired
+																		? "Challenge expired"
+																		: status === "pending"
+																			? "Complete the action below"
+																			: "Start verification to unlock invites"}
+															</p>
+														</div>
+														<span
+															className={`profile-verification-badge profile-verification-badge-${status}`}
+														>
+															{status === "verified" ? (
+																<CheckCircle2 className="h-3.5 w-3.5" />
+															) : status === "pending" ? (
+																<Clock3 className="h-3.5 w-3.5" />
+															) : (
+																<Sparkles className="h-3.5 w-3.5" />
+															)}
+															{statusLabel}
+														</span>
+													</div>
+													{status === "verified" ? (
+														<div className="profile-verification-verified">
+															<p>
+																Verification complete. You can request to join
+																parties immediately.
+															</p>
+															{verifiedAt && (
+																<span>Verified on {verifiedAt}</span>
+															)}
+														</div>
+													) : (
+														<div className="profile-verification-body">
+															<p className="profile-verification-instructions">
+																{instructionText}
+															</p>
+															{challenge && (
+																<div className="profile-verification-meta">
+																	<span>
+																		Skill: {formatSkillLabel(challenge.skill)}
+																	</span>
+																	<span>
+																		Target XP:{" "}
+																		{numberFormatter.format(
+																			challenge.expectedXp,
+																		)}
+																	</span>
+																	{remainingMs !== undefined && !isExpired && (
+																		<span>
+																			Window: {formatRemaining(remainingMs)}
+																		</span>
+																	)}
+																</div>
+															)}
+															<div className="profile-verification-actions">
+																{canStart && (
+																	<Button
+																		className="profile-primary profile-verify-button"
+																		disabled={accountState.isStarting}
+																		onClick={() =>
+																			handleStartVerification(account._id)
+																		}
+																	>
+																		{accountState.isStarting ? (
+																			<Loader2 className="h-4 w-4 animate-spin" />
+																		) : (
+																			<Sparkles className="h-4 w-4" />
+																		)}
+																		{accountState.isStarting
+																			? "Starting..."
+																			: startLabel}
+																	</Button>
+																)}
+																<Button
+																	variant="secondary"
+																	className="profile-secondary profile-verify-secondary"
+																	disabled={
+																		!canVerify || accountState.isVerifying
+																	}
+																	onClick={() =>
+																		handleVerifyAccount(account._id)
+																	}
+																>
+																	{accountState.isVerifying ? (
+																		<Loader2 className="h-4 w-4 animate-spin" />
+																	) : isExpired ? (
+																		<RefreshCw className="h-4 w-4" />
+																	) : (
+																		<Clock3 className="h-4 w-4" />
+																	)}
+																	{accountState.isVerifying
+																		? "Checking..."
+																		: "Verify Now"}
+																</Button>
+															</div>
+															{(resultMessage || (isExpired && !result)) && (
+																<div
+																	className={`profile-verification-result profile-verification-result-${result?.status ?? "expired"}`}
+																>
+																	{resultMessage ??
+																		"Challenge expired. Start a new verification task."}
+																</div>
+															)}
+															{accountState.error && (
+																<div className="profile-verification-error">
+																	{accountState.error}
+																</div>
+															)}
+														</div>
+													)}
+												</div>
 											</div>
 										);
 									})}

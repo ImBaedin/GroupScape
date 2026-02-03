@@ -27,6 +27,9 @@ export default defineSchema({
 	users: defineTable({
 		tokenIdentifier: v.string(),
 		playerAccounts: v.array(v.id("playerAccounts")),
+		activePlayerAccountId: v.optional(
+			v.union(v.null(), v.id("playerAccounts")),
+		),
 	}),
 
 	/**

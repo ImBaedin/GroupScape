@@ -21,7 +21,7 @@ function createAuth(
 		trustedOrigins: [siteUrl],
 		database: authComponent.adapter(ctx),
 		emailAndPassword: {
-			enabled: true,
+			enabled: false,
 			requireEmailVerification: false,
 		},
 		plugins: [crossDomain({ siteUrl }), convex()],

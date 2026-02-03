@@ -1,32 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
-import z from "zod";
-import SignInForm from "@/components/sign-in-form";
-import SignUpForm from "@/components/sign-up-form";
 import { authClient } from "@/lib/auth-client";
 
-const searchSchema = z.object({
-	mode: z.enum(["sign-in", "sign-up"]).optional(),
-});
-
 export const Route = createFileRoute("/auth")({
-	validateSearch: (search) => searchSchema.parse(search),
 	component: AuthRoute,
 });
 
 function AuthRoute() {
-	const search = Route.useSearch();
-	const initialMode = useMemo<"sign-in" | "sign-up">(
-		() => (search.mode === "sign-up" ? "sign-up" : "sign-in"),
-		[search.mode],
-	);
-	const [mode, setMode] = useState<"sign-in" | "sign-up">(initialMode);
 	const [discordPending, setDiscordPending] = useState(false);
-
-	useEffect(() => {
-		setMode(initialMode);
-	}, [initialMode]);
 
 	const handleDiscord = async () => {
 		setDiscordPending(true);
@@ -107,31 +89,10 @@ function AuthRoute() {
 
 				<section className="auth-card">
 					<div className="auth-card-header">
-						<h2 className="auth-card-title">
-							{mode === "sign-in" ? "Sign in" : "Create your account"}
-						</h2>
+						<h2 className="auth-card-title">Sign in with Discord</h2>
 						<p className="auth-card-subtitle">
-							{mode === "sign-in"
-								? "Return to your parties in seconds."
-								: "Claim your roster and start syncing instantly."}
+							Continue with your Discord account to unlock party access.
 						</p>
-					</div>
-
-					<div className="auth-toggle" role="tablist" aria-label="Auth mode">
-						<button
-							type="button"
-							data-active={mode === "sign-in"}
-							onClick={() => setMode("sign-in")}
-						>
-							Sign In
-						</button>
-						<button
-							type="button"
-							data-active={mode === "sign-up"}
-							onClick={() => setMode("sign-up")}
-						>
-							Sign Up
-						</button>
 					</div>
 
 					<button
@@ -150,16 +111,6 @@ function AuthRoute() {
 						</span>
 						{discordPending ? "Connecting..." : "Continue with Discord"}
 					</button>
-
-					<div className="auth-or">
-						<span>or use email</span>
-					</div>
-
-					{mode === "sign-in" ? (
-						<SignInForm onSwitchToSignUp={() => setMode("sign-up")} />
-					) : (
-						<SignUpForm onSwitchToSignIn={() => setMode("sign-in")} />
-					)}
 
 					<div className="auth-footnote">
 						By continuing, you agree to keep parties respectful and follow the

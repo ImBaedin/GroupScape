@@ -63,7 +63,19 @@ export const list = query({
 	args: {},
 	returns: v.array(playerAccountValidator),
 	handler: async (ctx) => {
-		const user = await requireUser(ctx);
+		const identity = await ctx.auth.getUserIdentity();
+		if (identity === null) {
+			return [];
+		}
+
+		const user = await ctx.db
+			.query("users")
+			.filter((q) => q.eq(q.field("tokenIdentifier"), identity.tokenIdentifier))
+			.first();
+
+		if (!user) {
+			return [];
+		}
 
 		if (user.playerAccounts.length === 0) {
 			return [];
@@ -207,8 +219,10 @@ export const add = mutation({
 			verificationStatus: "unverified",
 		});
 
+		const nextAccounts = [...user.playerAccounts, accountId];
 		await ctx.db.patch(user._id, {
-			playerAccounts: [...user.playerAccounts, accountId],
+			playerAccounts: nextAccounts,
+			activePlayerAccountId: user.activePlayerAccountId ?? accountId,
 		});
 
 		const account = await ctx.db.get(accountId);
@@ -240,9 +254,14 @@ const remove = mutation({
 		const updatedAccounts = user.playerAccounts.filter(
 			(id) => id !== args.accountId,
 		);
+		const nextActive =
+			user.activePlayerAccountId === args.accountId
+				? updatedAccounts[0] ?? null
+				: user.activePlayerAccountId ?? null;
 
 		await ctx.db.patch(user._id, {
 			playerAccounts: updatedAccounts,
+			activePlayerAccountId: nextActive,
 		});
 
 		if (account.stats) {
