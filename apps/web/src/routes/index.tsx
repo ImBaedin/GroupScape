@@ -1,6 +1,6 @@
 import { api } from "@GroupScape/backend/convex/_generated/api";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { type FormEvent, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +18,7 @@ export const Route = createFileRoute("/")({
 });
 
 function HomeComponent() {
+	const { isAuthenticated } = useConvexAuth();
 	const navigate = useNavigate();
 	const [searchQuery, setSearchQuery] = useState("");
 	const metrics = useQuery(api.parties.getHomeMetrics, {});
@@ -64,10 +65,10 @@ function HomeComponent() {
 	return (
 		<div className="guild-landing min-h-[calc(100svh-4rem)] px-4 pt-10 pb-20 sm:px-8">
 			<div className="mx-auto max-w-6xl space-y-14">
-				<header className="guild-topbar">
+				<header className="guild-topbar" hidden={isAuthenticated}>
 					<div className="flex items-center gap-3">
 						<img
-							src="/logo.png"
+							src="/square-logo.jpg"
 							alt="GroupScape"
 							className="h-10 w-10 rounded-full border border-border/60"
 						/>
@@ -151,18 +152,18 @@ function HomeComponent() {
 											</div>
 										) : (
 											<div className="guild-search-list">
-										{searchList.map((party) => {
-											const createdAt =
-												party.createdAt ?? party._creationTime;
-											const updatedAt = party.updatedAt ?? createdAt;
-											const memberCount = party.members.filter(
-												(member) => member.role !== "leader",
-											).length;
-											const totalPlayers = memberCount + 1;
-											const openSlots = Math.max(
-												0,
-												party.partySizeLimit - totalPlayers,
-											);
+												{searchList.map((party) => {
+													const createdAt =
+														party.createdAt ?? party._creationTime;
+													const updatedAt = party.updatedAt ?? createdAt;
+													const memberCount = party.members.filter(
+														(member) => member.role !== "leader",
+													).length;
+													const totalPlayers = memberCount + 1;
+													const openSlots = Math.max(
+														0,
+														party.partySizeLimit - totalPlayers,
+													);
 
 													return (
 														<Link
@@ -214,27 +215,19 @@ function HomeComponent() {
 						<CardContent className="grid gap-4 sm:grid-cols-2">
 							<div className="guild-stat">
 								<span className="guild-stat-label">Active Parties</span>
-								<span className="guild-stat-value">
-									{activePartiesMetric}
-								</span>
+								<span className="guild-stat-value">{activePartiesMetric}</span>
 							</div>
 							<div className="guild-stat">
 								<span className="guild-stat-label">Active Players</span>
-								<span className="guild-stat-value">
-									{activePlayersMetric}
-								</span>
+								<span className="guild-stat-value">{activePlayersMetric}</span>
 							</div>
 							<div className="guild-stat">
 								<span className="guild-stat-label">Total Parties</span>
-								<span className="guild-stat-value">
-									{totalPartiesMetric}
-								</span>
+								<span className="guild-stat-value">{totalPartiesMetric}</span>
 							</div>
 							<div className="guild-stat">
 								<span className="guild-stat-label">Total Players</span>
-								<span className="guild-stat-value">
-									{totalPlayersMetric}
-								</span>
+								<span className="guild-stat-value">{totalPlayersMetric}</span>
 							</div>
 						</CardContent>
 						<Separator className="guild-divider" />
