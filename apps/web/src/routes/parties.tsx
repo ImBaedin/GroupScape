@@ -28,24 +28,25 @@ function PartiesRoute() {
 	const { isAuthenticated, isLoading } = useConvexAuth();
 	const { search } = Route.useSearch();
 	const [searchValue, setSearchValue] = useState(search);
+	const shouldFetchAuthedData = isAuthenticated && !isLoading;
 	const appUser = useQuery(
 		api.users.getCurrent,
-		isAuthenticated ? {} : undefined,
+		shouldFetchAuthedData ? {} : "skip",
 	);
 	const parties = useQuery(
 		api.parties.list,
-		isAuthenticated ? {} : undefined,
+		shouldFetchAuthedData ? {} : "skip",
 	);
 	const searchResults = useQuery(
 		api.parties.searchActive,
-		isAuthenticated && search.trim().length > 0
+		shouldFetchAuthedData && search.trim().length > 0
 			? { query: search.trim(), limit: 50 }
 			: "skip",
 	);
 	const partyList = parties ?? [];
-	const isPartiesLoading = isAuthenticated && parties === undefined;
-	const metricsReady = isAuthenticated && !isPartiesLoading;
-	const isSearchMode = isAuthenticated && search.trim().length > 0;
+	const isPartiesLoading = shouldFetchAuthedData && parties === undefined;
+	const metricsReady = shouldFetchAuthedData && !isPartiesLoading;
+	const isSearchMode = shouldFetchAuthedData && search.trim().length > 0;
 	const isSearchLoading = isSearchMode && searchResults === undefined;
 	const displayedParties = isSearchMode ? searchResults ?? [] : partyList;
 
