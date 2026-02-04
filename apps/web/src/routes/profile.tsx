@@ -167,9 +167,8 @@ function ProfileRoute() {
 		api.playerAccounts.list,
 		isAuthenticated ? {} : undefined,
 	);
-	const accountStats = useQuery(
-		api.playerAccountStats.listForUser,
-		isAuthenticated ? {} : undefined,
+	const fetchAccountStats = useAction(
+		api.playerAccountStatsActions.listForUser,
 	);
 	const addAccount = useMutation(api.playerAccounts.add);
 	const deleteAccount = useMutation(api.playerAccounts.delete);
@@ -200,6 +199,33 @@ function ProfileRoute() {
 		Record<string, VerificationState>
 	>({});
 	const [nowMs, setNowMs] = useState(() => Date.now());
+	const [accountStats, setAccountStats] = useState<
+		Array<{
+			accountId: Id<"playerAccounts">;
+			username: string;
+			summary?: {
+				combatLevel: number;
+				totalLevel: number;
+				combatSkills: {
+					attack: number;
+					strength: number;
+					defence: number;
+					hitpoints: number;
+					ranged: number;
+					magic: number;
+					prayer: number;
+				};
+				bossKc: Array<{
+					key: string;
+					label: string;
+					score: number;
+					rank: number;
+				}>;
+			};
+			lastUpdated?: number;
+			isStale: boolean;
+		}>
+	>([]);
 
 	const accountList = accounts ?? [];
 	const isAccountsLoading = isAuthenticated && accounts === undefined;
@@ -244,10 +270,10 @@ function ProfileRoute() {
 			}),
 		[],
 	);
-	const accountStatsMap = useMemo(() => {
-		const stats = accountStats ?? [];
-		return new Map(stats.map((entry) => [entry.accountId, entry]));
-	}, [accountStats]);
+	const accountStatsMap = useMemo(
+		() => new Map(accountStats.map((entry) => [entry.accountId, entry])),
+		[accountStats],
+	);
 
 	useEffect(() => {
 		if (!shouldTick) {
@@ -261,6 +287,36 @@ function ProfileRoute() {
 			window.clearInterval(intervalId);
 		};
 	}, [shouldTick]);
+
+	useEffect(() => {
+		if (!isAuthenticated) {
+			setAccountStats([]);
+			return;
+		}
+
+		let cancelled = false;
+		(async () => {
+			try {
+				const data = await fetchAccountStats({});
+				if (!cancelled) {
+					setAccountStats(data);
+				}
+			} catch (error) {
+				if (!cancelled) {
+					setAccountStats([]);
+					const message =
+						error instanceof Error
+							? error.message
+							: "Failed to load hiscores";
+					toast.error(message);
+				}
+			}
+		})();
+
+		return () => {
+			cancelled = true;
+		};
+	}, [fetchAccountStats, isAuthenticated]);
 
 	const updateVerificationState = (
 		accountId: Id<"playerAccounts">,
@@ -298,6 +354,8 @@ function ProfileRoute() {
 		setRefreshingStatsId(accountId);
 		try {
 			await refreshStats({ accountId, force: true });
+			const data = await fetchAccountStats({});
+			setAccountStats(data);
 			toast.success("Hiscores refreshed");
 		} catch (error) {
 			const message =

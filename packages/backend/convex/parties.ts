@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
-import { mutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 import { STATS_STALE_MS, statsSummaryValidator } from "./statsSummary";
 
 const memberStatusValidator = v.union(
@@ -29,6 +29,7 @@ const partyValidator = v.object({
 	members: v.array(partyMemberValidator),
 	name: v.string(),
 	description: v.optional(v.string()),
+	searchText: v.optional(v.string()),
 	partySizeLimit: v.number(),
 	status: v.optional(partyStatusValidator),
 	createdAt: v.optional(v.number()),
@@ -56,7 +57,35 @@ const partyWithStatsValidator = v.object({
 	memberStats: v.array(partyMemberStatsValidator),
 });
 
+const partyMetricsSnapshotValidator = v.object({
+	activeParties: v.number(),
+	activePlayers: v.number(),
+	totalParties: v.number(),
+	totalPlayers: v.number(),
+	updatedAt: v.number(),
+});
+
 type AuthedCtx = QueryCtx | MutationCtx;
+
+const PARTY_METRICS_KIND = "partyMetrics";
+
+const normalizeSearchText = (value: string) =>
+	value
+		.toLowerCase()
+		.replace(/\s+/g, " ")
+		.trim();
+
+const buildPartySearchText = (name: string, description?: string) => {
+	const parts = [name, description]
+		.map((value) => value?.trim())
+		.filter((value): value is string => Boolean(value && value.length > 0));
+	return normalizeSearchText(parts.join(" "));
+};
+
+const isPartyActive = (status: Doc<"parties">["status"]) => status !== "closed";
+
+const getPartyPlayerCount = (party: Doc<"parties">) =>
+	party.members.length + 1;
 
 const requireUser = async (ctx: AuthedCtx) => {
 	const identity = await ctx.auth.getUserIdentity();
@@ -76,6 +105,90 @@ const requireUser = async (ctx: AuthedCtx) => {
 	return user as Doc<"users">;
 };
 
+const getPartyMetricsDoc = async (ctx: MutationCtx | QueryCtx) =>
+	ctx.db
+		.query("partyMetrics")
+		.withIndex("by_kind", (q) => q.eq("kind", PARTY_METRICS_KIND))
+		.first();
+
+const ensurePartyMetrics = async (ctx: MutationCtx) => {
+	const existing = await getPartyMetricsDoc(ctx);
+	if (existing) {
+		return existing;
+	}
+
+	const now = Date.now();
+	const metricsId = await ctx.db.insert("partyMetrics", {
+		kind: PARTY_METRICS_KIND,
+		activeParties: 0,
+		activePlayers: 0,
+		totalParties: 0,
+		totalPlayers: 0,
+		updatedAt: now,
+	});
+
+	const inserted = await ctx.db.get(metricsId);
+	if (!inserted) {
+		throw new ConvexError("Failed to initialize party metrics");
+	}
+
+	return inserted;
+};
+
+type PartyMetricsDelta = {
+	activeParties?: number;
+	activePlayers?: number;
+	totalParties?: number;
+	totalPlayers?: number;
+};
+
+const applyPartyMetricsDelta = async (
+	ctx: MutationCtx,
+	delta: PartyMetricsDelta,
+) => {
+	const metrics = await ensurePartyMetrics(ctx);
+	const next = {
+		activeParties: Math.max(
+			0,
+			metrics.activeParties + (delta.activeParties ?? 0),
+		),
+		activePlayers: Math.max(
+			0,
+			metrics.activePlayers + (delta.activePlayers ?? 0),
+		),
+		totalParties: Math.max(
+			0,
+			metrics.totalParties + (delta.totalParties ?? 0),
+		),
+		totalPlayers: Math.max(
+			0,
+			metrics.totalPlayers + (delta.totalPlayers ?? 0),
+		),
+		updatedAt: Date.now(),
+	};
+
+	await ctx.db.patch(metrics._id, next);
+	return next;
+};
+
+const setPartyMetricsSnapshot = async (
+	ctx: MutationCtx,
+	snapshot: {
+		activeParties: number;
+		activePlayers: number;
+		totalParties: number;
+		totalPlayers: number;
+	},
+) => {
+	const metrics = await ensurePartyMetrics(ctx);
+	const next = {
+		...snapshot,
+		updatedAt: Date.now(),
+	};
+	await ctx.db.patch(metrics._id, next);
+	return next;
+};
+
 export const list = query({
 	args: {},
 	returns: v.array(partyValidator),
@@ -87,6 +200,54 @@ export const list = query({
 			.withIndex("by_status_and_createdAt", (q) => q.eq("status", "open"))
 			.order("desc")
 			.collect();
+	},
+});
+
+export const searchActive = query({
+	args: {
+		query: v.string(),
+		limit: v.optional(v.number()),
+	},
+	returns: v.array(partyValidator),
+	handler: async (ctx, args) => {
+		const trimmedQuery = args.query.trim();
+		if (trimmedQuery.length === 0) {
+			return [];
+		}
+
+		const limit = Math.min(Math.max(args.limit ?? 6, 1), 50);
+
+		return await ctx.db
+			.query("parties")
+			.withSearchIndex("search_parties", (q) =>
+				q.search("searchText", trimmedQuery).eq("status", "open"),
+			)
+			.take(limit);
+	},
+});
+
+export const getHomeMetrics = query({
+	args: {},
+	returns: partyMetricsSnapshotValidator,
+	handler: async (ctx) => {
+		const metrics = await getPartyMetricsDoc(ctx);
+		if (!metrics) {
+			return {
+				activeParties: 0,
+				activePlayers: 0,
+				totalParties: 0,
+				totalPlayers: 0,
+				updatedAt: 0,
+			};
+		}
+
+		return {
+			activeParties: metrics.activeParties,
+			activePlayers: metrics.activePlayers,
+			totalParties: metrics.totalParties,
+			totalPlayers: metrics.totalPlayers,
+			updatedAt: metrics.updatedAt,
+		};
 	},
 });
 
@@ -250,6 +411,7 @@ export const create = mutation({
 		const user = await requireUser(ctx);
 
 		const now = Date.now();
+		const searchText = buildPartySearchText(args.name, args.description);
 
 		// Create the party
 		const partyId = await ctx.db.insert("parties", {
@@ -257,10 +419,18 @@ export const create = mutation({
 			members: [],
 			name: args.name,
 			description: args.description,
+			searchText,
 			partySizeLimit: args.partySizeLimit,
 			status: "open",
 			createdAt: now,
 			updatedAt: now,
+		});
+
+		await applyPartyMetricsDelta(ctx, {
+			activeParties: 1,
+			activePlayers: 1,
+			totalParties: 1,
+			totalPlayers: 1,
 		});
 
 		return partyId;
@@ -284,6 +454,8 @@ export const requestJoin = mutation({
 		if (party.status === "closed") {
 			throw new ConvexError("Party is closed");
 		}
+
+		const isActive = isPartyActive(party.status);
 
 		const account = await ctx.db.get(args.playerAccountId);
 		if (!account) {
@@ -326,6 +498,11 @@ export const requestJoin = mutation({
 		await ctx.db.patch(args.partyId, {
 			members: nextMembers,
 			updatedAt: now,
+		});
+
+		await applyPartyMetricsDelta(ctx, {
+			totalPlayers: 1,
+			activePlayers: isActive ? 1 : 0,
 		});
 
 		const updated = await ctx.db.get(args.partyId);
@@ -372,6 +549,8 @@ export const reviewRequest = mutation({
 			throw new ConvexError("Membership request is not pending");
 		}
 
+		const isActive = isPartyActive(party.status);
+
 		if (args.approve) {
 			if (party.status === "closed") {
 				throw new ConvexError("Party is closed");
@@ -398,6 +577,13 @@ export const reviewRequest = mutation({
 			members: nextMembers,
 			updatedAt: now,
 		});
+
+		if (!args.approve) {
+			await applyPartyMetricsDelta(ctx, {
+				totalPlayers: -1,
+				activePlayers: isActive ? -1 : 0,
+			});
+		}
 
 		const updated = await ctx.db.get(args.partyId);
 		if (!updated) {
@@ -433,6 +619,7 @@ export const updateDetails = mutation({
 		}
 
 		const trimmedDescription = args.description?.trim();
+		const searchText = buildPartySearchText(trimmedName, trimmedDescription);
 		const now = Date.now();
 
 		await ctx.db.patch(args.partyId, {
@@ -440,6 +627,7 @@ export const updateDetails = mutation({
 			description: trimmedDescription && trimmedDescription.length > 0
 				? trimmedDescription
 				: undefined,
+			searchText,
 			updatedAt: now,
 		});
 
@@ -470,11 +658,21 @@ export const updateStatus = mutation({
 			throw new ConvexError("Not authorized to update party status");
 		}
 
+		const wasActive = isPartyActive(party.status);
+		const willBeActive = isPartyActive(args.status);
+		const playerCount = getPartyPlayerCount(party);
 		const now = Date.now();
 		await ctx.db.patch(args.partyId, {
 			status: args.status,
 			updatedAt: now,
 		});
+
+		if (wasActive !== willBeActive) {
+			await applyPartyMetricsDelta(ctx, {
+				activeParties: willBeActive ? 1 : -1,
+				activePlayers: (willBeActive ? 1 : -1) * playerCount,
+			});
+		}
 
 		const updated = await ctx.db.get(args.partyId);
 		if (!updated) {
@@ -502,7 +700,17 @@ export const remove = mutation({
 			throw new ConvexError("Not authorized to remove this party");
 		}
 
+		const playerCount = getPartyPlayerCount(party);
+		const isActive = isPartyActive(party.status);
+
 		await ctx.db.delete(args.partyId);
+
+		await applyPartyMetricsDelta(ctx, {
+			totalParties: -1,
+			totalPlayers: -playerCount,
+			activeParties: isActive ? -1 : 0,
+			activePlayers: isActive ? -playerCount : 0,
+		});
 		return null;
 	},
 });
@@ -541,11 +749,63 @@ export const leave = mutation({
 			updatedAt: now,
 		});
 
+		const isActive = isPartyActive(party.status);
+		await applyPartyMetricsDelta(ctx, {
+			totalPlayers: -1,
+			activePlayers: isActive ? -1 : 0,
+		});
+
 		const updated = await ctx.db.get(args.partyId);
 		if (!updated) {
 			throw new ConvexError("Party not found");
 		}
 
 		return updated;
+	},
+});
+
+export const backfillSearchAndMetrics = internalMutation({
+	args: {},
+	returns: partyMetricsSnapshotValidator,
+	handler: async (ctx) => {
+		const parties = await ctx.db.query("parties").collect();
+
+		let activeParties = 0;
+		let activePlayers = 0;
+		let totalPlayers = 0;
+
+		for (const party of parties) {
+			const resolvedStatus = party.status ?? "open";
+			const searchText = buildPartySearchText(party.name, party.description);
+			const patch: Partial<Doc<"parties">> = {};
+
+			if (party.status === undefined) {
+				patch.status = resolvedStatus;
+			}
+
+			if (party.searchText !== searchText) {
+				patch.searchText = searchText;
+			}
+
+			if (Object.keys(patch).length > 0) {
+				await ctx.db.patch(party._id, patch);
+			}
+
+			const playerCount = getPartyPlayerCount(party);
+			totalPlayers += playerCount;
+			if (isPartyActive(resolvedStatus)) {
+				activeParties += 1;
+				activePlayers += playerCount;
+			}
+		}
+
+		const snapshot = await setPartyMetricsSnapshot(ctx, {
+			activeParties,
+			activePlayers,
+			totalParties: parties.length,
+			totalPlayers,
+		});
+
+		return snapshot;
 	},
 });

@@ -1,4 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { api } from "@GroupScape/backend/convex/_generated/api";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useQuery } from "convex/react";
+import { type FormEvent, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -15,6 +18,49 @@ export const Route = createFileRoute("/")({
 });
 
 function HomeComponent() {
+	const navigate = useNavigate();
+	const [searchQuery, setSearchQuery] = useState("");
+	const metrics = useQuery(api.parties.getHomeMetrics, {});
+	const numberFormatter = useMemo(() => new Intl.NumberFormat(), []);
+	const dateFormatter = useMemo(
+		() =>
+			new Intl.DateTimeFormat(undefined, {
+				dateStyle: "short",
+			}),
+		[],
+	);
+	const trimmedQuery = searchQuery.trim();
+	const searchResults = useQuery(
+		api.parties.searchActive,
+		trimmedQuery.length > 1 ? { query: trimmedQuery, limit: 6 } : "skip",
+	);
+	const metricsReady = metrics !== undefined;
+	const searchReady = trimmedQuery.length > 1;
+	const isSearching = searchReady && searchResults === undefined;
+	const searchList = searchResults ?? [];
+
+	const activePartiesMetric = metricsReady
+		? numberFormatter.format(metrics.activeParties)
+		: "--";
+	const activePlayersMetric = metricsReady
+		? numberFormatter.format(metrics.activePlayers)
+		: "--";
+	const totalPartiesMetric = metricsReady
+		? numberFormatter.format(metrics.totalParties)
+		: "--";
+	const totalPlayersMetric = metricsReady
+		? numberFormatter.format(metrics.totalPlayers)
+		: "--";
+
+	const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+		event.preventDefault();
+		if (!trimmedQuery) return;
+		navigate({
+			to: "/parties",
+			search: { search: trimmedQuery },
+		});
+	};
+
 	return (
 		<div className="guild-landing min-h-[calc(100svh-4rem)] px-4 pt-10 pb-20 sm:px-8">
 			<div className="mx-auto max-w-6xl space-y-14">
@@ -75,14 +121,82 @@ function HomeComponent() {
 									the best match for your time and role.
 								</CardDescription>
 							</CardHeader>
-							<CardContent className="flex flex-col gap-3 sm:flex-row">
-								<Input
-									className="guild-input"
-									placeholder="Search by boss, region, or party name"
-								/>
-								<Button className="guild-button guild-button-primary">
-									Find Parties
-								</Button>
+							<CardContent className="flex flex-col gap-3">
+								<form
+									onSubmit={handleSubmit}
+									className="flex flex-col gap-3 sm:flex-row"
+								>
+									<Input
+										className="guild-input"
+										placeholder="Search by boss, region, or party name"
+										value={searchQuery}
+										onChange={(event) => setSearchQuery(event.target.value)}
+									/>
+									<Button
+										type="submit"
+										className="guild-button guild-button-primary"
+									>
+										Find Parties
+									</Button>
+								</form>
+								{searchReady ? (
+									<div className="guild-search-results">
+										{isSearching ? (
+											<div className="guild-search-status">
+												Searching active parties...
+											</div>
+										) : searchList.length === 0 ? (
+											<div className="guild-search-status">
+												No active parties found.
+											</div>
+										) : (
+											<div className="guild-search-list">
+												{searchList.map((party) => {
+													const createdAt =
+														party.createdAt ?? party._creationTime;
+													const updatedAt = party.updatedAt ?? createdAt;
+													const totalPlayers = party.members.length + 1;
+													const openSlots = Math.max(
+														0,
+														party.partySizeLimit - totalPlayers,
+													);
+
+													return (
+														<Link
+															key={party._id}
+															to="/party/$partyId"
+															params={{ partyId: party._id }}
+															className="guild-search-item"
+														>
+															<div className="guild-search-text">
+																<p className="guild-search-title">
+																	{party.name}
+																</p>
+																<p className="guild-search-desc">
+																	{party.description?.trim()
+																		? party.description
+																		: "No description yet. Tap to view details."}
+																</p>
+															</div>
+															<div className="guild-search-meta">
+																<span>
+																	{numberFormatter.format(openSlots)} slots
+																</span>
+																<span>
+																	{numberFormatter.format(totalPlayers)} players
+																</span>
+																<span>
+																	Updated{" "}
+																	{dateFormatter.format(new Date(updatedAt))}
+																</span>
+															</div>
+														</Link>
+													);
+												})}
+											</div>
+										)}
+									</div>
+								) : null}
 							</CardContent>
 						</Card>
 					</div>
@@ -97,19 +211,27 @@ function HomeComponent() {
 						<CardContent className="grid gap-4 sm:grid-cols-2">
 							<div className="guild-stat">
 								<span className="guild-stat-label">Active Parties</span>
-								<span className="guild-stat-value">42</span>
+								<span className="guild-stat-value">
+									{activePartiesMetric}
+								</span>
 							</div>
 							<div className="guild-stat">
 								<span className="guild-stat-label">Active Players</span>
-								<span className="guild-stat-value">137</span>
+								<span className="guild-stat-value">
+									{activePlayersMetric}
+								</span>
 							</div>
 							<div className="guild-stat">
 								<span className="guild-stat-label">Total Parties</span>
-								<span className="guild-stat-value">5,248</span>
+								<span className="guild-stat-value">
+									{totalPartiesMetric}
+								</span>
 							</div>
 							<div className="guild-stat">
 								<span className="guild-stat-label">Total Players</span>
-								<span className="guild-stat-value">18,903</span>
+								<span className="guild-stat-value">
+									{totalPlayersMetric}
+								</span>
 							</div>
 						</CardContent>
 						<Separator className="guild-divider" />

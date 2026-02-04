@@ -1,7 +1,7 @@
 import { api } from "@GroupScape/backend/convex/_generated/api";
 import type { Id } from "@GroupScape/backend/convex/_generated/dataModel";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react";
 import {
 	ArrowLeft,
 	BadgeCheck,
@@ -43,6 +43,34 @@ type PartyMember = {
 	status: "pending" | "accepted";
 };
 
+type PartyMemberStats = {
+	memberId: Id<"users">;
+	playerAccountId?: Id<"playerAccounts">;
+	username?: string;
+	headshotUrl?: string;
+	status: "leader" | "accepted" | "pending";
+	verificationStatus?: "unverified" | "pending" | "verified";
+	summary?: StatsSummary;
+	lastUpdated?: number;
+	isStale: boolean;
+};
+
+type PartyData = {
+	party: {
+		_id: Id<"parties">;
+		_creationTime: number;
+		ownerId: Id<"users">;
+		members: PartyMember[];
+		name: string;
+		description?: string;
+		partySizeLimit: number;
+		status?: "open" | "closed";
+		createdAt?: number;
+		updatedAt?: number;
+	};
+	memberStats: PartyMemberStats[];
+};
+
 export const Route = createFileRoute("/party/$partyId")({
 	component: PartyDetailRoute,
 });
@@ -54,10 +82,7 @@ function PartyDetailRoute() {
 		api.users.getCurrent,
 		isAuthenticated ? {} : "skip",
 	);
-	const partyData = useQuery(
-		api.parties.getWithMemberStats,
-		isAuthenticated ? { partyId: partyId as Id<"parties"> } : "skip",
-	);
+	const fetchParty = useAction(api.partiesActions.getWithMemberStats);
 	const accounts = useQuery(
 		api.playerAccounts.list,
 		isAuthenticated ? {} : "skip",
@@ -68,6 +93,11 @@ function PartyDetailRoute() {
 	const updateStatus = useMutation(api.parties.updateStatus);
 	const removeParty = useMutation(api.parties.remove);
 	const navigate = useNavigate();
+
+	const [partyData, setPartyData] = useState<PartyData | null | undefined>(
+		undefined,
+	);
+	const [partyError, setPartyError] = useState<string | null>(null);
 
 	const [selectedAccountId, setSelectedAccountId] = useState<
 		Id<"playerAccounts"> | null
@@ -94,6 +124,39 @@ function PartyDetailRoute() {
 			>,
 		);
 	}, [accounts, appUser?.activePlayerAccountId, selectedAccountId]);
+
+	useEffect(() => {
+		if (!isAuthenticated) {
+			setPartyData(null);
+			setPartyError(null);
+			return;
+		}
+		let cancelled = false;
+		setPartyError(null);
+		setPartyData(undefined);
+		(async () => {
+			try {
+				const data = await fetchParty({
+					partyId: partyId as Id<"parties">,
+				});
+				if (!cancelled) {
+					setPartyData(data);
+				}
+			} catch (error) {
+				if (!cancelled) {
+					const message =
+						error instanceof Error
+							? error.message
+							: "Unable to load party";
+					setPartyError(message);
+					setPartyData(null);
+				}
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, [fetchParty, isAuthenticated, partyId]);
 
 	useEffect(() => {
 		if (!partyData?.party) return;
@@ -328,7 +391,7 @@ function PartyDetailRoute() {
 		try {
 			await removeParty({ partyId: party._id });
 			toast.success("Party closed");
-			await navigate({ to: "/parties" });
+			await navigate({ to: "/parties", search: { search: "" } });
 		} catch (error) {
 			const message =
 				error instanceof Error ? error.message : "Unable to close party";
@@ -434,6 +497,7 @@ function PartyDetailRoute() {
 						<CardContent className="flex flex-wrap gap-3">
 							<Link
 								to="/parties"
+								search={{ search: "" }}
 								className={cn(
 									buttonVariants({ variant: "secondary" }),
 									"party-secondary",
@@ -442,6 +506,11 @@ function PartyDetailRoute() {
 								Back to parties
 							</Link>
 						</CardContent>
+						{partyError && (
+							<CardContent className="pt-0">
+								<div className="party-join-error">{partyError}</div>
+							</CardContent>
+						)}
 					</Card>
 				</div>
 			</div>
@@ -457,6 +526,7 @@ function PartyDetailRoute() {
 				<header className="party-detail-header">
 					<Link
 						to="/parties"
+						search={{ search: "" }}
 						className={cn(
 							buttonVariants({ variant: "secondary", size: "sm" }),
 							"party-detail-back",

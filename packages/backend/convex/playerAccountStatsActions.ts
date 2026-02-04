@@ -3,11 +3,13 @@
 import { anyApi } from "convex/server";
 import { ConvexError, v } from "convex/values";
 import { action } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 import { getStatsByGamemode } from "./osrsHiscores";
 import {
 	STATS_STALE_MS,
 	buildStatsSummary,
 	statsSummaryValidator,
+	type StatsSummary,
 } from "./statsSummary";
 
 export const refresh = action({
@@ -64,5 +66,61 @@ export const refresh = action({
 			lastUpdated: now,
 			isStale: false,
 		};
+	},
+});
+
+const accountStatsSummaryValidator = v.object({
+	accountId: v.id("playerAccounts"),
+	username: v.string(),
+	summary: v.optional(statsSummaryValidator),
+	lastUpdated: v.optional(v.number()),
+	isStale: v.boolean(),
+});
+
+type AccountStatsSummary = {
+	accountId: Id<"playerAccounts">;
+	username: string;
+	summary?: StatsSummary;
+	lastUpdated?: number;
+	isStale: boolean;
+};
+
+export const listForUser = action({
+	args: {},
+	returns: v.array(accountStatsSummaryValidator),
+	handler: async (ctx) => {
+		const initial = (await ctx.runQuery(
+			anyApi.playerAccountStats.listForUser,
+			{},
+		)) as AccountStatsSummary[];
+
+		const staleAccounts = initial.filter((entry) => entry.isStale);
+		if (staleAccounts.length === 0) {
+			return initial;
+		}
+
+		for (const entry of staleAccounts) {
+			try {
+				const context = await ctx.runQuery(
+					anyApi.playerAccountStats.getRefreshContext,
+					{ accountId: entry.accountId },
+				);
+				const now = Date.now();
+				const stats = await getStatsByGamemode(context.account.username);
+				const summary = buildStatsSummary(stats);
+				const statsJson = JSON.stringify(stats);
+
+				await ctx.runMutation(anyApi.playerAccountStats.upsertStats, {
+					accountId: context.account._id,
+					statsJson,
+					summary,
+					lastUpdated: now,
+				});
+			} catch {
+				// Ignore refresh failures; stale data remains.
+			}
+		}
+
+		return await ctx.runQuery(anyApi.playerAccountStats.listForUser, {});
 	},
 });

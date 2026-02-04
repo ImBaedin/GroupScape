@@ -3,6 +3,16 @@
 Write your Convex functions here.
 See https://docs.convex.dev/functions for more.
 
+## Party search backfill
+
+After adding search + metrics fields to parties, run the internal backfill to
+populate `searchText`, default missing statuses to `open`, and recompute the
+metrics snapshot:
+
+```sh
+npx convex run internal.parties.backfillSearchAndMetrics
+```
+
 A query function that takes two arguments looks like:
 
 ```ts

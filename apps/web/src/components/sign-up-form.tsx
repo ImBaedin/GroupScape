@@ -40,6 +40,7 @@ export default function SignUpForm({
 					onSuccess: () => {
 						navigate({
 							to: "/parties",
+							search: { search: "" },
 						});
 						toast.success("Sign up successful");
 					},

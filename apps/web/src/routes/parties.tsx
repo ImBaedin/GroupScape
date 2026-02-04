@@ -1,9 +1,9 @@
 import { api } from "@GroupScape/backend/convex/_generated/api";
 import type { Id } from "@GroupScape/backend/convex/_generated/dataModel";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useConvexAuth, useQuery } from "convex/react";
 import { Crown, Flag, Loader2, Sparkles, Timer, Users } from "lucide-react";
-import { useMemo } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import CreatePartyForm from "@/components/create-party-form";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -13,14 +13,21 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/parties")({
+	validateSearch: (search) => ({
+		search: typeof search.search === "string" ? search.search : "",
+	}),
 	component: PartiesRoute,
 });
 
 function PartiesRoute() {
+	const navigate = useNavigate();
 	const { isAuthenticated, isLoading } = useConvexAuth();
+	const { search } = Route.useSearch();
+	const [searchValue, setSearchValue] = useState(search);
 	const appUser = useQuery(
 		api.users.getCurrent,
 		isAuthenticated ? {} : undefined,
@@ -29,9 +36,22 @@ function PartiesRoute() {
 		api.parties.list,
 		isAuthenticated ? {} : undefined,
 	);
+	const searchResults = useQuery(
+		api.parties.searchActive,
+		isAuthenticated && search.trim().length > 0
+			? { query: search.trim(), limit: 50 }
+			: "skip",
+	);
 	const partyList = parties ?? [];
 	const isPartiesLoading = isAuthenticated && parties === undefined;
 	const metricsReady = isAuthenticated && !isPartiesLoading;
+	const isSearchMode = isAuthenticated && search.trim().length > 0;
+	const isSearchLoading = isSearchMode && searchResults === undefined;
+	const displayedParties = isSearchMode ? searchResults ?? [] : partyList;
+
+	useEffect(() => {
+		setSearchValue(search);
+	}, [search]);
 
 	const numberFormatter = useMemo(() => new Intl.NumberFormat(), []);
 	const dateFormatter = useMemo(
@@ -76,6 +96,15 @@ function PartiesRoute() {
 		if (appUser?._id === ownerId) return "You";
 		const compact = ownerId.slice(-4).toUpperCase();
 		return `Leader #${compact}`;
+	};
+
+	const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
+		event.preventDefault();
+		const trimmed = searchValue.trim();
+		navigate({
+			to: "/parties",
+			search: { search: trimmed },
+		});
 	};
 
 	return (
@@ -166,54 +195,82 @@ function PartiesRoute() {
 										live rosters.
 									</p>
 								</div>
-								<div className="party-board-metrics">
-									<div className="party-metric">
-										<span>Open parties</span>
-										<strong>{openPartiesMetric}</strong>
-									</div>
+							<div className="party-board-metrics">
+								<div className="party-metric">
+									<span>Open parties</span>
+									<strong>{openPartiesMetric}</strong>
+								</div>
 									<div className="party-metric">
 										<span>Accepted</span>
 										<strong>{acceptedMetric}</strong>
 									</div>
 									<div className="party-metric">
 										<span>Requests</span>
-										<strong>{pendingMetric}</strong>
-									</div>
+									<strong>{pendingMetric}</strong>
 								</div>
 							</div>
+						</div>
+						<form className="party-search" onSubmit={handleSearchSubmit}>
+							<Input
+								className="party-search-input"
+								placeholder="Search parties by name or description"
+								value={searchValue}
+								onChange={(event) => setSearchValue(event.target.value)}
+							/>
+							<button
+								type="submit"
+								className={cn(
+									buttonVariants({ variant: "secondary", size: "sm" }),
+									"party-search-button",
+								)}
+							>
+								Search
+							</button>
+						</form>
 
-							<div className="party-board-body">
-								{isLoading ? (
-									<div className="party-loading">
-										<Loader2 className="h-5 w-5 animate-spin" />
-										<span>Loading parties...</span>
-									</div>
-								) : !isAuthenticated ? (
-									<div className="party-empty">
-										<p>Sign in to browse the live party board.</p>
-										<p className="text-muted-foreground">
-											Once authenticated you can view parties and request to
-											join instantly.
-										</p>
-									</div>
-								) : parties === undefined ? (
-									<div className="party-loading">
-										<Loader2 className="h-5 w-5 animate-spin" />
-										<span>Fetching open parties...</span>
-									</div>
-								) : partyList.length === 0 ? (
-									<div className="party-empty">
-										<p>No open parties yet.</p>
-										<p className="text-muted-foreground">
-											Create the first listing to get the roster started.
-										</p>
-									</div>
-								) : (
-									<div className="party-list">
-										{partyList.map((party) => {
-											const acceptedCount = party.members.filter(
-												(member) => member.status === "accepted",
-											).length + 1;
+						<div className="party-board-body">
+							{isLoading ? (
+								<div className="party-loading">
+									<Loader2 className="h-5 w-5 animate-spin" />
+									<span>Loading parties...</span>
+								</div>
+							) : !isAuthenticated ? (
+								<div className="party-empty">
+									<p>Sign in to browse the live party board.</p>
+									<p className="text-muted-foreground">
+										Once authenticated you can view parties and request to
+										join instantly.
+									</p>
+								</div>
+							) : isSearchLoading ? (
+								<div className="party-loading">
+									<Loader2 className="h-5 w-5 animate-spin" />
+									<span>Searching parties...</span>
+								</div>
+							) : parties === undefined ? (
+								<div className="party-loading">
+									<Loader2 className="h-5 w-5 animate-spin" />
+									<span>Fetching open parties...</span>
+								</div>
+							) : displayedParties.length === 0 ? (
+								<div className="party-empty">
+									<p>
+										{isSearchMode
+											? "No parties match that search."
+											: "No open parties yet."}
+									</p>
+									<p className="text-muted-foreground">
+										{isSearchMode
+											? "Try a shorter search or clear the filter."
+											: "Create the first listing to get the roster started."}
+									</p>
+								</div>
+							) : (
+								<div className="party-list">
+									{displayedParties.map((party) => {
+										const acceptedCount = party.members.filter(
+											(member) => member.status === "accepted",
+										).length + 1;
 											const pendingCount = party.members.filter(
 												(member) => member.status === "pending",
 											).length;

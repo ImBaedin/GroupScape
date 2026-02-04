@@ -87,6 +87,37 @@ export const getRefreshContext = internalQuery({
 	},
 });
 
+export const getAccountForRefresh = internalQuery({
+	args: {
+		accountId: v.id("playerAccounts"),
+	},
+	returns: v.object({
+		account: v.object({
+			_id: v.id("playerAccounts"),
+			username: v.string(),
+			stats: v.optional(v.id("playerAccountStats")),
+		}),
+		stats: v.union(playerAccountStatsValidator, v.null()),
+	}),
+	handler: async (ctx, args) => {
+		const account = await ctx.db.get(args.accountId);
+		if (!account) {
+			throw new ConvexError("Account not found");
+		}
+
+		const stats = account.stats ? await ctx.db.get(account.stats) : null;
+
+		return {
+			account: {
+				_id: account._id,
+				username: account.username,
+				stats: account.stats,
+			},
+			stats,
+		};
+	},
+});
+
 export const upsertStats = internalMutation({
 	args: {
 		accountId: v.id("playerAccounts"),

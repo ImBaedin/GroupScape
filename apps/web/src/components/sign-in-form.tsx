@@ -38,6 +38,7 @@ export default function SignInForm({
 					onSuccess: () => {
 						navigate({
 							to: "/parties",
+							search: { search: "" },
 						});
 						toast.success("Sign in successful");
 					},

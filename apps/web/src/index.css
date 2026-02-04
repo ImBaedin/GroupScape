@@ -579,6 +579,74 @@ body {
 	color: var(--rs-ink-muted);
 }
 
+.guild-search-results {
+	display: grid;
+	gap: 0.75rem;
+}
+
+.guild-search-list {
+	display: grid;
+	gap: 0.75rem;
+}
+
+.guild-search-item {
+	display: flex;
+	flex-direction: column;
+	gap: 0.6rem;
+	padding: 0.8rem 1rem;
+	border-radius: 18px;
+	background: color-mix(in oklch, var(--rs-paper) 88%, transparent);
+	border: 1px solid color-mix(in oklch, var(--rs-border) 70%, transparent);
+	color: var(--rs-ink);
+	text-decoration: none;
+	transition:
+		transform 0.2s ease,
+		box-shadow 0.2s ease;
+}
+
+.guild-search-item:hover {
+	transform: translateY(-1px);
+	box-shadow: 0 12px 30px oklch(0.35 0.12 50 / 0.12);
+}
+
+@media (min-width: 720px) {
+	.guild-search-item {
+		flex-direction: row;
+		justify-content: space-between;
+		align-items: center;
+	}
+}
+
+.guild-search-title {
+	font-weight: 700;
+	color: var(--rs-ink);
+}
+
+.guild-search-desc {
+	font-size: 0.85rem;
+	color: var(--rs-ink-muted);
+}
+
+.guild-search-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.4rem 1rem;
+	font-size: 0.55rem;
+	letter-spacing: 0.18em;
+	text-transform: uppercase;
+	color: var(--rs-ink-muted);
+}
+
+.guild-search-status {
+	padding: 0.6rem 0.9rem;
+	border-radius: 14px;
+	border: 1px dashed color-mix(in oklch, var(--rs-border) 60%, transparent);
+	font-size: 0.65rem;
+	letter-spacing: 0.18em;
+	text-transform: uppercase;
+	color: var(--rs-ink-muted);
+}
+
 .guild-panel {
 	border-radius: 28px;
 	padding: 2rem;
@@ -1234,6 +1302,35 @@ body {
 	display: grid;
 	gap: 0.8rem;
 	min-width: 10rem;
+}
+
+.party-search {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.75rem;
+	align-items: center;
+	margin-bottom: 1.5rem;
+}
+
+.party-search-input {
+	flex: 1;
+	min-width: 220px;
+	border-radius: 999px;
+	border: 1px solid var(--rs-border);
+	background: color-mix(in oklch, var(--rs-paper) 88%, transparent);
+	padding: 0.7rem 1.2rem;
+	font-size: 0.9rem;
+	color: var(--rs-ink);
+}
+
+.party-search-input::placeholder {
+	color: var(--rs-ink-muted);
+}
+
+.party-search-button {
+	border-radius: 999px;
+	letter-spacing: 0.18em;
+	text-transform: uppercase;
 }
 
 .party-metric {

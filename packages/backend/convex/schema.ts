@@ -89,11 +89,25 @@ export default defineSchema({
 
 		name: v.string(),
 		description: v.optional(v.string()),
+		searchText: v.optional(v.string()),
 		partySizeLimit: v.number(),
 		status: v.optional(partyStatus),
 		createdAt: v.optional(v.number()),
 		updatedAt: v.optional(v.number()),
 	})
 		.index("by_status_and_createdAt", ["status", "createdAt"])
-		.index("by_ownerId", ["ownerId"]),
+		.index("by_ownerId", ["ownerId"])
+		.searchIndex("search_parties", {
+			searchField: "searchText",
+			filterFields: ["status"],
+		}),
+
+	partyMetrics: defineTable({
+		kind: v.literal("partyMetrics"),
+		activeParties: v.number(),
+		activePlayers: v.number(),
+		totalParties: v.number(),
+		totalPlayers: v.number(),
+		updatedAt: v.number(),
+	}).index("by_kind", ["kind"]),
 });

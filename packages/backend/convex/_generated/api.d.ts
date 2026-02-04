@@ -14,6 +14,7 @@ import type * as healthCheck from "../healthCheck.js";
 import type * as http from "../http.js";
 import type * as osrsHiscores from "../osrsHiscores.js";
 import type * as parties from "../parties.js";
+import type * as partiesActions from "../partiesActions.js";
 import type * as player from "../player.js";
 import type * as playerAccountStats from "../playerAccountStats.js";
 import type * as playerAccountStatsActions from "../playerAccountStatsActions.js";
@@ -38,6 +39,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   osrsHiscores: typeof osrsHiscores;
   parties: typeof parties;
+  partiesActions: typeof partiesActions;
   player: typeof player;
   playerAccountStats: typeof playerAccountStats;
   playerAccountStatsActions: typeof playerAccountStatsActions;
