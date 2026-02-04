@@ -249,7 +249,6 @@ function PartyDetailRoute() {
 		partyStatus !== "closed" &&
 		!memberEntry &&
 		!isOwner &&
-		isVerified &&
 		openSlots > 0;
 
 	const helperMessage = (() => {
@@ -275,7 +274,7 @@ function PartyDetailRoute() {
 			return "This party is currently full.";
 		}
 		if (!isOwner && !isVerified) {
-			return "Verify this account to unlock join requests.";
+			return "Unverified requests are reviewed after verified accounts.";
 		}
 		return "Send a join request to the party leader.";
 	})();
@@ -956,7 +955,8 @@ function PartyDetailRoute() {
 								<CardHeader>
 									<CardTitle>Request to join</CardTitle>
 									<CardDescription>
-										Choose a verified account to join this party.
+										Choose an account to request to join. Verified accounts
+										are reviewed first.
 									</CardDescription>
 								</CardHeader>
 								<CardContent className="party-join-body">

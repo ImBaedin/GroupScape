@@ -262,7 +262,79 @@ export const get = query({
 	returns: v.union(partyValidator, v.null()),
 	handler: async (ctx, args) => {
 		await requireUser(ctx);
-		return await ctx.db.get(args.partyId);
+		const party = await ctx.db.get(args.partyId);
+		if (!party) {
+			return null;
+		}
+
+		const pendingMembers = party.members.filter(
+			(member) => member.role !== "leader" && member.status === "pending",
+		);
+
+		if (pendingMembers.length === 0) {
+			return party;
+		}
+
+		const accountIds = pendingMembers
+			.map((member) => member.playerAccountId)
+			.filter((accountId): accountId is Doc<"playerAccounts">["_id"] =>
+				Boolean(accountId),
+			);
+
+		if (accountIds.length === 0) {
+			return party;
+		}
+
+		const accounts = await Promise.all(
+			accountIds.map((accountId) => ctx.db.get(accountId)),
+		);
+		const verificationStatusById = new Map(
+			accountIds.map((accountId, index) => [
+				accountId,
+				accounts[index]?.verificationStatus ?? "unverified",
+			]),
+		);
+
+		const priorityForStatus = (
+			status?: Doc<"playerAccounts">["verificationStatus"],
+		) => {
+			switch (status) {
+				case "verified":
+					return 0;
+				case "pending":
+					return 1;
+				case "unverified":
+				default:
+					return 2;
+			}
+		};
+
+		const sortedPending = pendingMembers
+			.map((member, index) => ({
+				member,
+				index,
+				priority: priorityForStatus(
+					member.playerAccountId
+						? verificationStatusById.get(member.playerAccountId)
+						: "unverified",
+				),
+			}))
+			.sort((a, b) =>
+				a.priority === b.priority ? a.index - b.index : a.priority - b.priority,
+			)
+			.map(({ member }) => member);
+
+		let pendingIndex = 0;
+		const nextMembers = party.members.map((member) =>
+			member.role !== "leader" && member.status === "pending"
+				? sortedPending[pendingIndex++]
+				: member,
+		);
+
+		return {
+			...party,
+			members: nextMembers,
+		};
 	},
 });
 
@@ -350,10 +422,6 @@ export const requestJoin = mutation({
 
 		if (alreadyMember) {
 			throw new ConvexError("Already requested to join");
-		}
-
-		if (!isOwner && account.verificationStatus !== "verified") {
-			throw new ConvexError("Account must be verified to request to join");
 		}
 
 		const now = Date.now();
