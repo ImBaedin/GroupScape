@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { statsSummaryValidator } from "./statsSummary";
 
 const memberStatus = v.union(v.literal("pending"), v.literal("accepted"));
 const partyStatus = v.union(v.literal("open"), v.literal("closed"));
@@ -53,15 +54,19 @@ export default defineSchema({
 	/**
 	 * Player account stats table
 	 *
-	 * This stores the CSV of hiscores stats for a player account.
-	 * Parse with `parseJsonStats` from `osrsHiscores`.
+	 * This stores the JSON hiscores payload for a player account.
+	 * Parse with `parseJsonStats` from `osrsHiscores` if needed.
 	 */
 	playerAccountStats: defineTable({
 		playerAccountId: v.id("playerAccounts"),
 		/**
-		 * CSV of hiscores stats. Parse with `parseJsonStats` from `osrsHiscores`.
+		 * JSON payload of hiscores stats.
 		 */
 		stats: v.string(),
+		/**
+		 * Summary snapshot for quick UI display.
+		 */
+		summary: v.optional(statsSummaryValidator),
 		/**
 		 * Last updated timestamp.
 		 */

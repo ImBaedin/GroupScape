@@ -188,9 +188,16 @@ body {
 	position: relative;
 	isolation: isolate;
 	background:
-		radial-gradient(circle at top left, color-mix(in oklch, var(--rs-paper) 80%, transparent) 0%, transparent 55%),
-		radial-gradient(circle at 20% 20%, color-mix(in oklch, var(--rs-gold) 40%, transparent) 0%, transparent 60%),
-		linear-gradient(160deg, var(--rs-paper), var(--rs-paper-deep));
+		radial-gradient(
+			circle at top left,
+			color-mix(in oklch, var(--rs-paper) 80%, transparent) 0%,
+			transparent 55%
+		),
+		radial-gradient(
+			circle at 20% 20%,
+			color-mix(in oklch, var(--rs-gold) 40%, transparent) 0%,
+			transparent 60%
+		), linear-gradient(160deg, var(--rs-paper), var(--rs-paper-deep));
 }
 
 .runescape-landing::before {
@@ -214,7 +221,10 @@ body {
 			color-mix(in oklch, var(--rs-paper) 70%, transparent) 45%,
 			color-mix(in oklch, var(--rs-gold-deep) 30%, transparent) 100%
 		);
-	background-size: 90px 90px, 90px 90px, 100% 100%;
+	background-size:
+		90px 90px,
+		90px 90px,
+		100% 100%;
 	mix-blend-mode: multiply;
 	opacity: 0.45;
 	pointer-events: none;
@@ -253,7 +263,9 @@ body {
 	box-shadow:
 		0 16px 40px oklch(0.4 0.15 50 / 0.25),
 		inset 0 1px 0 oklch(1 0 0 / 0.5);
-	transition: transform 0.2s ease, box-shadow 0.2s ease;
+	transition:
+		transform 0.2s ease,
+		box-shadow 0.2s ease;
 }
 
 .runescape-button:hover {
@@ -301,8 +313,7 @@ body {
 .runescape-panel {
 	border-radius: 28px;
 	padding: 2rem;
-	background:
-		linear-gradient(160deg, var(--rs-paper), var(--rs-paper-deep));
+	background: linear-gradient(160deg, var(--rs-paper), var(--rs-paper-deep));
 	border: 1px solid var(--rs-border);
 	box-shadow: 0 30px 80px oklch(0.35 0.12 50 / 0.2);
 }
@@ -313,7 +324,8 @@ body {
 }
 
 .runescape-panel-header {
-	border-bottom: 1px solid color-mix(in oklch, var(--rs-border) 75%, transparent);
+	border-bottom: 1px solid
+		color-mix(in oklch, var(--rs-border) 75%, transparent);
 	padding-bottom: 1rem;
 }
 
@@ -416,8 +428,7 @@ body {
 			circle at 15% 35%,
 			color-mix(in oklch, var(--rs-paper-deep) 35%, transparent) 0%,
 			transparent 60%
-		),
-		linear-gradient(140deg, var(--rs-paper) 0%, var(--rs-paper-deep) 80%);
+		), linear-gradient(140deg, var(--rs-paper) 0%, var(--rs-paper-deep) 80%);
 	background-repeat: no-repeat;
 	background-size: cover;
 }
@@ -443,7 +454,10 @@ body {
 			transparent 45%,
 			color-mix(in oklch, var(--rs-gold-deep) 25%, transparent) 100%
 		);
-	background-size: 80px 80px, 80px 80px, 100% 100%;
+	background-size:
+		80px 80px,
+		80px 80px,
+		100% 100%;
 	mix-blend-mode: multiply;
 	opacity: 0.5;
 	pointer-events: none;
@@ -513,7 +527,9 @@ body {
 	box-shadow:
 		0 14px 32px oklch(0.4 0.15 50 / 0.25),
 		inset 0 1px 0 oklch(1 0 0 / 0.5);
-	transition: transform 0.2s ease, box-shadow 0.2s ease;
+	transition:
+		transform 0.2s ease,
+		box-shadow 0.2s ease;
 }
 
 .guild-button:hover {
@@ -566,14 +582,14 @@ body {
 .guild-panel {
 	border-radius: 28px;
 	padding: 2rem;
-	background:
-		linear-gradient(160deg, var(--rs-paper), var(--rs-paper-deep));
+	background: linear-gradient(160deg, var(--rs-paper), var(--rs-paper-deep));
 	border: 1px solid var(--rs-border);
 	box-shadow: 0 30px 80px oklch(0.35 0.12 50 / 0.22);
 }
 
 .guild-panel-header {
-	border-bottom: 1px solid color-mix(in oklch, var(--rs-border) 75%, transparent);
+	border-bottom: 1px solid
+		color-mix(in oklch, var(--rs-border) 75%, transparent);
 	padding-bottom: 1rem;
 }
 
@@ -688,8 +704,7 @@ body {
 			circle at 80% 10%,
 			color-mix(in oklch, var(--rs-paper) 70%, transparent) 0%,
 			transparent 45%
-		),
-		linear-gradient(160deg, var(--rs-paper), var(--rs-paper-deep));
+		), linear-gradient(160deg, var(--rs-paper), var(--rs-paper-deep));
 }
 
 .auth-page::before {
@@ -908,7 +923,9 @@ body {
 	color: #f4f6ff;
 	background: linear-gradient(135deg, #5f6bff, #3c46c7);
 	box-shadow: 0 18px 36px rgba(45, 56, 128, 0.35);
-	transition: transform 0.2s ease, box-shadow 0.2s ease;
+	transition:
+		transform 0.2s ease,
+		box-shadow 0.2s ease;
 }
 
 .auth-discord:hover {
@@ -1049,8 +1066,7 @@ body {
 			circle at 10% 10%,
 			color-mix(in oklch, var(--rs-gold) 25%, transparent) 0%,
 			transparent 55%
-		),
-		linear-gradient(150deg, var(--rs-paper), var(--rs-paper-deep));
+		), linear-gradient(150deg, var(--rs-paper), var(--rs-paper-deep));
 }
 
 .party-shell {
@@ -1257,7 +1273,9 @@ body {
 	background: color-mix(in oklch, var(--rs-paper) 88%, transparent);
 	border: 1px solid color-mix(in oklch, var(--rs-border) 60%, transparent);
 	box-shadow: 0 14px 34px oklch(0.35 0.12 50 / 0.1);
-	transition: transform 0.2s ease, box-shadow 0.2s ease;
+	transition:
+		transform 0.2s ease,
+		box-shadow 0.2s ease;
 }
 
 .party-list-card:hover {
@@ -1372,8 +1390,7 @@ body {
 			circle at 85% 8%,
 			color-mix(in oklch, var(--rs-border) 32%, transparent) 0%,
 			transparent 55%
-		),
-		linear-gradient(160deg, var(--rs-paper), var(--rs-paper-deep));
+		), linear-gradient(160deg, var(--rs-paper), var(--rs-paper-deep));
 }
 
 .party-detail-shell {
@@ -1430,7 +1447,9 @@ body {
 	color: var(--rs-ink-muted);
 	opacity: 0;
 	transform: translateY(2px);
-	transition: opacity 0.2s ease, transform 0.2s ease;
+	transition:
+		opacity 0.2s ease,
+		transform 0.2s ease;
 }
 
 .party-edit-trigger:hover .party-edit-icon,
@@ -1562,13 +1581,63 @@ body {
 }
 
 .party-roster-item {
-	display: flex;
-	justify-content: space-between;
-	gap: 1rem;
+	display: grid;
+	gap: 0.75rem;
 	padding: 0.85rem 1rem;
 	border-radius: 16px;
-	border: 1px solid color-mix(in oklch, var(--rs-border) 60%, transparent);
-	background: color-mix(in oklch, var(--rs-paper) 90%, transparent);
+	border: 1px solid color-mix(in oklch, var(--rs-border) 55%, transparent);
+	background: linear-gradient(
+		135deg,
+		color-mix(in oklch, var(--rs-paper) 88%, transparent),
+		color-mix(in oklch, var(--rs-paper-deep) 72%, transparent)
+	);
+	box-shadow: 0 18px 30px oklch(0.3 0.12 50 / 0.18);
+}
+
+.party-roster-info {
+	display: grid;
+	gap: 0.6rem;
+}
+
+.party-roster-identity {
+	display: flex;
+	align-items: center;
+	gap: 0.85rem;
+}
+
+.party-roster-header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+}
+
+.party-roster-avatar {
+	width: 2.7rem;
+	height: 2.7rem;
+	border-radius: 999px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border: 1px solid color-mix(in oklch, var(--rs-border) 65%, transparent);
+	background: color-mix(in oklch, var(--rs-paper) 92%, transparent);
+	color: var(--rs-ink);
+	font-size: 0.7rem;
+	font-weight: 700;
+	letter-spacing: 0.12em;
+	box-shadow: 0 10px 20px oklch(0.3 0.12 50 / 0.2);
+	overflow: hidden;
+}
+
+.party-roster-avatar-image {
+	background: color-mix(in oklch, var(--rs-paper) 80%, transparent);
+}
+
+.party-roster-avatar img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
 }
 
 .party-roster-item-accepted {
@@ -1614,6 +1683,94 @@ body {
 	background: color-mix(in oklch, var(--rs-paper) 70%, transparent);
 	color: var(--rs-ink-muted);
 	border: 1px solid color-mix(in oklch, var(--rs-border) 55%, transparent);
+}
+
+.party-stats {
+	display: grid;
+	gap: 0.6rem;
+	padding-top: 0.5rem;
+	border-top: 1px solid color-mix(in oklch, var(--rs-border) 55%, transparent);
+}
+
+.party-stats-top {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.75rem;
+}
+
+.party-stats-metric {
+	display: flex;
+	align-items: baseline;
+	gap: 0.4rem;
+	font-size: 0.75rem;
+	letter-spacing: 0.18em;
+	text-transform: uppercase;
+	color: var(--rs-ink-muted);
+}
+
+.party-stats-metric strong {
+	font-size: 0.95rem;
+	letter-spacing: 0;
+	color: var(--rs-ink);
+}
+
+.party-stats-skills {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem 0.9rem;
+	font-size: 0.7rem;
+	text-transform: uppercase;
+	color: var(--rs-ink-muted);
+}
+
+.party-stats-skill {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	white-space: nowrap;
+}
+
+.party-stats-skill-label {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.3rem;
+}
+
+.party-stats-skill-icon {
+	width: 14px;
+	height: 14px;
+	image-rendering: pixelated;
+}
+
+.party-stats-skill strong {
+	color: var(--rs-ink);
+	font-weight: 700;
+}
+
+.party-stats-footer {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.6rem;
+	font-size: 0.65rem;
+	letter-spacing: 0.18em;
+	text-transform: uppercase;
+	color: var(--rs-ink-muted);
+}
+
+.party-stats-stale {
+	padding: 0.2rem 0.45rem;
+	border-radius: 999px;
+	border: 1px solid color-mix(in oklch, var(--rs-ember) 45%, transparent);
+	background: color-mix(in oklch, var(--rs-ember) 12%, transparent);
+	color: color-mix(in oklch, var(--rs-ember) 75%, var(--rs-ink));
+	font-weight: 700;
+}
+
+.party-stats-empty {
+	font-size: 0.7rem;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--rs-ink-muted);
 }
 
 .party-join-body {
@@ -1746,7 +1903,10 @@ body {
 	border-radius: 16px;
 	border: 1px solid color-mix(in oklch, var(--rs-border) 60%, transparent);
 	background: color-mix(in oklch, var(--rs-paper) 88%, transparent);
-	transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+	transition:
+		border-color 0.2s ease,
+		box-shadow 0.2s ease,
+		transform 0.2s ease;
 	text-align: left;
 }
 
@@ -1911,8 +2071,7 @@ body {
 			circle at 88% 12%,
 			color-mix(in oklch, var(--rs-border) 35%, transparent) 0%,
 			transparent 60%
-		),
-		linear-gradient(160deg, var(--rs-paper), var(--rs-paper-deep));
+		), linear-gradient(160deg, var(--rs-paper), var(--rs-paper-deep));
 }
 
 .profile-page::before {
@@ -2421,6 +2580,129 @@ body {
 	background: color-mix(in oklch, var(--rs-ember) 12%, transparent);
 }
 
+.profile-stats-panel {
+	margin-top: 0.6rem;
+	padding: 0.9rem 1rem;
+	border-radius: 16px;
+	background: color-mix(in oklch, var(--rs-paper) 88%, transparent);
+	border: 1px solid color-mix(in oklch, var(--rs-border) 65%, transparent);
+	display: grid;
+	gap: 0.75rem;
+}
+
+.profile-stats-header {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	gap: 0.75rem;
+	align-items: flex-start;
+}
+
+.profile-stats-eyebrow {
+	font-size: 0.6rem;
+	letter-spacing: 0.26em;
+	text-transform: uppercase;
+	color: var(--rs-ink-muted);
+}
+
+.profile-stats-title {
+	font-weight: 700;
+	color: var(--rs-ink);
+}
+
+.profile-stats-refresh {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.45rem;
+}
+
+.profile-stats-body {
+	display: grid;
+	gap: 0.6rem;
+}
+
+.profile-stats-metrics {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.75rem;
+}
+
+.profile-stats-metric {
+	display: flex;
+	align-items: baseline;
+	gap: 0.35rem;
+	font-size: 0.7rem;
+	letter-spacing: 0.2em;
+	text-transform: uppercase;
+	color: var(--rs-ink-muted);
+}
+
+.profile-stats-metric strong {
+	font-size: 0.9rem;
+	letter-spacing: 0;
+	color: var(--rs-ink);
+}
+
+.profile-stats-skills {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem 0.9rem;
+	font-size: 0.65rem;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	color: var(--rs-ink-muted);
+}
+
+.profile-stats-skill {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	white-space: nowrap;
+}
+
+.profile-stats-skill-label {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.3rem;
+}
+
+.profile-stats-skill-icon {
+	width: 14px;
+	height: 14px;
+	image-rendering: pixelated;
+}
+
+.profile-stats-skill strong {
+	color: var(--rs-ink);
+	font-weight: 700;
+}
+
+.profile-stats-empty {
+	font-size: 0.7rem;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var(--rs-ink-muted);
+}
+
+.profile-stats-footer {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.6rem;
+	font-size: 0.65rem;
+	letter-spacing: 0.18em;
+	text-transform: uppercase;
+	color: var(--rs-ink-muted);
+}
+
+.profile-stats-stale {
+	padding: 0.2rem 0.45rem;
+	border-radius: 999px;
+	border: 1px solid color-mix(in oklch, var(--rs-ember) 45%, transparent);
+	background: color-mix(in oklch, var(--rs-ember) 12%, transparent);
+	color: color-mix(in oklch, var(--rs-ember) 75%, var(--rs-ink));
+	font-weight: 700;
+}
+
 .account-status {
 	display: inline-flex;
 	align-items: center;
@@ -2437,6 +2719,7 @@ body {
 	background: color-mix(in oklch, var(--rs-gold) 55%, transparent);
 	color: color-mix(in oklch, var(--rs-ink) 90%, #000);
 	border-color: color-mix(in oklch, var(--rs-gold-deep) 50%, transparent);
+	cursor: help;
 }
 
 .account-status-pending {
@@ -2487,7 +2770,8 @@ body {
 		color-mix(in oklch, var(--rs-paper) 70%, transparent)
 	);
 	backdrop-filter: blur(12px);
-	border-bottom: 1px solid color-mix(in oklch, var(--rs-border) 70%, transparent);
+	border-bottom: 1px solid
+		color-mix(in oklch, var(--rs-border) 70%, transparent);
 }
 
 .app-header-inner {
@@ -2561,7 +2845,9 @@ body {
 	font-size: 0.65rem;
 	letter-spacing: 0.2em;
 	text-transform: uppercase;
-	transition: transform 0.2s ease, box-shadow 0.2s ease;
+	transition:
+		transform 0.2s ease,
+		box-shadow 0.2s ease;
 }
 
 .app-active-party:hover {

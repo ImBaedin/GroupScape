@@ -54,8 +54,8 @@ function PartyDetailRoute() {
 		api.users.getCurrent,
 		isAuthenticated ? {} : "skip",
 	);
-	const party = useQuery(
-		api.parties.get,
+	const partyData = useQuery(
+		api.parties.getWithMemberStats,
 		isAuthenticated ? { partyId: partyId as Id<"parties"> } : "skip",
 	);
 	const accounts = useQuery(
@@ -96,11 +96,11 @@ function PartyDetailRoute() {
 	}, [accounts, appUser?.activePlayerAccountId, selectedAccountId]);
 
 	useEffect(() => {
-		if (!party) return;
-		setDraftName(party.name);
-		setDraftDescription(party.description ?? "");
+		if (!partyData?.party) return;
+		setDraftName(partyData.party.name);
+		setDraftDescription(partyData.party.description ?? "");
 		setDetailsError(null);
-	}, [party]);
+	}, [partyData]);
 
 	const accountMap = useMemo(
 		() =>
@@ -115,6 +115,8 @@ function PartyDetailRoute() {
 	);
 	const selectedStatus =
 		(selectedAccount?.verificationStatus ?? "unverified") as keyof typeof statusLabels;
+	const party = partyData?.party ?? null;
+	const memberStats = partyData?.memberStats ?? [];
 	const isOwner = Boolean(party && appUser && party.ownerId === appUser._id);
 	const memberEntry =
 		party && appUser
@@ -150,19 +152,53 @@ function PartyDetailRoute() {
 		[],
 	);
 
-	const formatMemberName = (member: {
-		memberId: Id<"users">;
-		playerAccountId: Id<"playerAccounts">;
-	}) => {
-		const known = accountMap.get(member.playerAccountId);
-		const suffix = member.playerAccountId.slice(-4).toUpperCase();
+	const memberStatsMap = useMemo(() => {
+		const map = new Map<string, (typeof memberStats)[number]>();
+		for (const entry of memberStats) {
+			const key = `${entry.memberId}:${entry.playerAccountId ?? "leader"}`;
+			map.set(key, entry);
+		}
+		return map;
+	}, [memberStats]);
+
+	const getMemberStats = (
+		memberId: Id<"users">,
+		playerAccountId?: Id<"playerAccounts">,
+	) => memberStatsMap.get(`${memberId}:${playerAccountId ?? "leader"}`);
+
+	const leaderStatsEntry = useMemo(
+		() => memberStats.find((entry) => entry.status === "leader"),
+		[memberStats],
+	);
+
+	const formatMemberName = (
+		memberId: Id<"users">,
+		playerAccountId?: Id<"playerAccounts">,
+	) => {
+		const statsEntry = getMemberStats(memberId, playerAccountId);
+		const known =
+			statsEntry?.username ??
+			(playerAccountId ? accountMap.get(playerAccountId) : undefined);
+		const suffix = playerAccountId
+			? playerAccountId.slice(-4).toUpperCase()
+			: memberId.slice(-4).toUpperCase();
 		const baseLabel = known ?? `Account #${suffix}`;
-		const isSelf = appUser?._id === member.memberId;
-		const isLeader = party?.ownerId === member.memberId;
+		const isSelf = appUser?._id === memberId;
+		const isLeader = party?.ownerId === memberId;
 		if (isSelf && isLeader) return `${baseLabel} (You, Leader)`;
 		if (isSelf) return `${baseLabel} (You)`;
 		if (isLeader) return `${baseLabel} (Leader)`;
 		return baseLabel;
+	};
+
+	const getAccountInitials = (label: string) => {
+		const base = label.trim();
+		if (!base) return "GS";
+		const parts = base.split(/\s+/).filter(Boolean);
+		if (parts.length === 1) {
+			return parts[0]?.slice(0, 2).toUpperCase();
+		}
+		return `${parts[0]?.[0] ?? ""}${parts[1]?.[0] ?? ""}`.toUpperCase();
 	};
 
 	const isVerified = selectedStatus === "verified";
@@ -373,7 +409,7 @@ function PartyDetailRoute() {
 		);
 	}
 
-	if (party === undefined) {
+	if (partyData === undefined) {
 		return (
 			<div className="party-detail flex min-h-[calc(100svh-4rem)] items-center justify-center px-4 py-16">
 				<div className="party-loading">
@@ -384,7 +420,7 @@ function PartyDetailRoute() {
 		);
 	}
 
-	if (party === null) {
+	if (partyData === null || !party) {
 		return (
 			<div className="party-detail min-h-[calc(100svh-4rem)] px-4 py-16 sm:px-8">
 				<div className="party-detail-shell mx-auto max-w-5xl">
@@ -634,59 +670,180 @@ function PartyDetailRoute() {
 							<CardContent className="party-roster-body">
 								<div className="party-roster-grid">
 									<div className="party-roster-item party-roster-item-accepted">
-										<div>
-											<p className="party-roster-name">
-												{isOwner
-													? "You (Leader)"
-													: `Leader #${party.ownerId
-															.slice(-4)
-															.toUpperCase()}`}
-											</p>
-											<span className="party-roster-sub">Party leader</span>
+										<div className="party-roster-info">
+											<div className="party-roster-header">
+												<div className="party-roster-identity">
+													<div
+														className={cn(
+															"party-roster-avatar",
+															leaderStatsEntry?.headshotUrl &&
+																"party-roster-avatar-image",
+														)}
+													>
+														{leaderStatsEntry?.headshotUrl ? (
+															<img
+																src={leaderStatsEntry.headshotUrl}
+																alt="Leader headshot"
+															/>
+														) : (
+															<span>
+																{getAccountInitials(
+																	leaderStatsEntry?.username ??
+																		formatMemberName(
+																			party.ownerId,
+																			leaderStatsEntry?.playerAccountId ??
+																				undefined,
+																		),
+																)}
+															</span>
+														)}
+													</div>
+													<div>
+														<p className="party-roster-name">
+															{formatMemberName(
+																party.ownerId,
+																leaderStatsEntry?.playerAccountId ?? undefined,
+															)}
+														</p>
+														<span className="party-roster-sub">
+															Party leader
+														</span>
+													</div>
+												</div>
+												<span className="party-roster-status party-roster-status-accepted">
+													<Crown className="h-3.5 w-3.5" />
+													Leader
+												</span>
+											</div>
+											<RosterStats
+												summary={leaderStatsEntry?.summary}
+												lastUpdated={leaderStatsEntry?.lastUpdated}
+												isStale={leaderStatsEntry?.isStale ?? true}
+												numberFormatter={numberFormatter}
+												dateFormatter={dateFormatter}
+											/>
 										</div>
-										<span className="party-roster-status party-roster-status-accepted">
-											<Crown className="h-3.5 w-3.5" />
-											Leader
-										</span>
 									</div>
-									{acceptedMembers.map((member) => (
-										<div
-											key={`${member.memberId}-accepted-${member.playerAccountId}`}
-											className="party-roster-item party-roster-item-accepted"
-										>
-											<div>
-												<p className="party-roster-name">
-													{formatMemberName(member)}
-												</p>
-												<span className="party-roster-sub">
-													Accepted member
-												</span>
+									{acceptedMembers.map((member) => {
+										const statsEntry = getMemberStats(
+											member.memberId,
+											member.playerAccountId,
+										);
+										const displayName = formatMemberName(
+											member.memberId,
+											member.playerAccountId,
+										);
+										return (
+											<div
+												key={`${member.memberId}-accepted-${member.playerAccountId}`}
+												className="party-roster-item party-roster-item-accepted"
+											>
+											<div className="party-roster-info">
+												<div className="party-roster-header">
+													<div className="party-roster-identity">
+														<div
+															className={cn(
+																"party-roster-avatar",
+																statsEntry?.headshotUrl &&
+																	"party-roster-avatar-image",
+															)}
+														>
+															{statsEntry?.headshotUrl ? (
+																<img
+																	src={statsEntry.headshotUrl}
+																	alt={`${displayName} headshot`}
+																/>
+															) : (
+																<span>
+																	{getAccountInitials(
+																		statsEntry?.username ?? displayName,
+																	)}
+																</span>
+															)}
+														</div>
+														<div>
+															<p className="party-roster-name">
+																{displayName}
+															</p>
+															<span className="party-roster-sub">
+																Accepted member
+															</span>
+														</div>
+													</div>
+													<span className="party-roster-status party-roster-status-accepted">
+														<BadgeCheck className="h-3.5 w-3.5" />
+														Accepted
+													</span>
+												</div>
+												<RosterStats
+													summary={statsEntry?.summary}
+													lastUpdated={statsEntry?.lastUpdated}
+													isStale={statsEntry?.isStale ?? true}
+													numberFormatter={numberFormatter}
+													dateFormatter={dateFormatter}
+												/>
 											</div>
-											<span className="party-roster-status party-roster-status-accepted">
-												<BadgeCheck className="h-3.5 w-3.5" />
-												Accepted
-											</span>
-										</div>
-									))}
-									{pendingMembers.map((member) => (
-										<div
-											key={`${member.memberId}-pending-${member.playerAccountId}`}
-											className="party-roster-item party-roster-item-pending"
-										>
-											<div>
-												<p className="party-roster-name">
-													{formatMemberName(member)}
-												</p>
-												<span className="party-roster-sub">
-													Request awaiting approval
-												</span>
 											</div>
-											<span className="party-roster-status party-roster-status-pending">
-												<CircleDot className="h-3.5 w-3.5" />
-												Pending
-											</span>
-										</div>
-									))}
+										);
+									})}
+									{pendingMembers.map((member) => {
+										const statsEntry = getMemberStats(
+											member.memberId,
+											member.playerAccountId,
+										);
+										const displayName = formatMemberName(
+											member.memberId,
+											member.playerAccountId,
+										);
+										return (
+											<div
+												key={`${member.memberId}-pending-${member.playerAccountId}`}
+												className="party-roster-item party-roster-item-pending"
+											>
+											<div className="party-roster-info">
+												<div className="party-roster-header">
+													<div className="party-roster-identity">
+														<div
+															className={cn(
+																"party-roster-avatar",
+																statsEntry?.headshotUrl &&
+																	"party-roster-avatar-image",
+															)}
+														>
+															{statsEntry?.headshotUrl ? (
+																<img
+																	src={statsEntry.headshotUrl}
+																	alt={`${displayName} headshot`}
+																/>
+															) : (
+																<span>
+																	{getAccountInitials(
+																		statsEntry?.username ?? displayName,
+																	)}
+																</span>
+															)}
+														</div>
+														<div>
+															<p className="party-roster-name">
+																{displayName}
+															</p>
+															<span className="party-roster-sub">
+																Request awaiting approval
+															</span>
+														</div>
+													</div>
+													<span className="party-roster-status party-roster-status-pending">
+														<CircleDot className="h-3.5 w-3.5" />
+														Pending
+													</span>
+												</div>
+												<div className="party-stats-empty">
+													Stats unlock after approval.
+												</div>
+											</div>
+											</div>
+										);
+										})}
 								</div>
 								{acceptedMembers.length === 0 && pendingMembers.length === 0 && (
 									<p className="party-roster-empty text-muted-foreground">
@@ -792,7 +949,10 @@ function PartyDetailRoute() {
 														>
 															<div className="party-approval-info">
 																<span className="party-approval-name">
-																	{formatMemberName(member)}
+																	{formatMemberName(
+																		member.memberId,
+																		member.playerAccountId,
+																	)}
 																</span>
 																<span className="party-approval-meta">
 																	Awaiting leader decision
@@ -965,6 +1125,103 @@ function PartyDetailRoute() {
 						</Card>
 					</div>
 				</section>
+			</div>
+		</div>
+	);
+}
+
+type CombatSkillsSummary = {
+	attack: number;
+	strength: number;
+	defence: number;
+	hitpoints: number;
+	ranged: number;
+	magic: number;
+	prayer: number;
+};
+
+type BossKcSummary = {
+	key: string;
+	label: string;
+	score: number;
+	rank: number;
+};
+
+type StatsSummary = {
+	combatLevel: number;
+	totalLevel: number;
+	combatSkills: CombatSkillsSummary;
+	bossKc: BossKcSummary[];
+};
+
+const COMBAT_SKILL_LABELS: Array<{
+	key: keyof CombatSkillsSummary;
+	label: string;
+	icon: string;
+}> = [
+	{ key: "attack", label: "Atk", icon: "/ui/skills/attack.png" },
+	{ key: "strength", label: "Str", icon: "/ui/skills/strength.png" },
+	{ key: "defence", label: "Def", icon: "/ui/skills/defence.png" },
+	{ key: "hitpoints", label: "HP", icon: "/ui/skills/hitpoints.png" },
+	{ key: "ranged", label: "Rng", icon: "/ui/skills/ranged.png" },
+	{ key: "magic", label: "Mag", icon: "/ui/skills/magic.png" },
+	{ key: "prayer", label: "Pray", icon: "/ui/skills/prayer.png" },
+];
+
+function RosterStats({
+	summary,
+	lastUpdated,
+	isStale,
+	numberFormatter,
+	dateFormatter,
+}: {
+	summary?: StatsSummary;
+	lastUpdated?: number;
+	isStale: boolean;
+	numberFormatter: Intl.NumberFormat;
+	dateFormatter: Intl.DateTimeFormat;
+}) {
+	if (!summary) {
+		return <div className="party-stats-empty">No hiscores snapshot yet.</div>;
+	}
+
+	const updatedLabel = lastUpdated
+		? dateFormatter.format(new Date(lastUpdated))
+		: "Not updated yet";
+
+	return (
+		<div className="party-stats">
+			<div className="party-stats-top">
+				<div className="party-stats-metric">
+					<span>Combat</span>
+					<strong>{numberFormatter.format(summary.combatLevel)}</strong>
+				</div>
+				<div className="party-stats-metric">
+					<span>Total</span>
+					<strong>{numberFormatter.format(summary.totalLevel)}</strong>
+				</div>
+			</div>
+			<div className="party-stats-skills">
+				{COMBAT_SKILL_LABELS.map((skill) => (
+					<div key={skill.key} className="party-stats-skill">
+						<span className="party-stats-skill-label">
+							<img
+								src={skill.icon}
+								alt={`${skill.label} icon`}
+								className="party-stats-skill-icon"
+								loading="lazy"
+							/>
+							{skill.label}
+						</span>
+						<strong>
+							{numberFormatter.format(summary.combatSkills[skill.key])}
+						</strong>
+					</div>
+				))}
+			</div>
+			<div className="party-stats-footer">
+				<span>Updated {updatedLabel}</span>
+				{isStale && <span className="party-stats-stale">Stale</span>}
 			</div>
 		</div>
 	);

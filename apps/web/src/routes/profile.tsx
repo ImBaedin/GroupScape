@@ -5,7 +5,6 @@ import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react";
 import {
 	Camera,
 	Check,
-	CheckCircle2,
 	ChevronDown,
 	Clock3,
 	Loader2,
@@ -39,6 +38,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 const statusLabels = {
@@ -46,6 +50,27 @@ const statusLabels = {
 	pending: "Pending",
 	verified: "Verified",
 };
+
+const COMBAT_SKILL_LABELS: Array<{
+	key:
+		| "attack"
+		| "strength"
+		| "defence"
+		| "hitpoints"
+		| "ranged"
+		| "magic"
+		| "prayer";
+	label: string;
+	icon: string;
+}> = [
+	{ key: "attack", label: "Atk", icon: "/ui/skills/attack.png" },
+	{ key: "strength", label: "Str", icon: "/ui/skills/strength.png" },
+	{ key: "defence", label: "Def", icon: "/ui/skills/defence.png" },
+	{ key: "hitpoints", label: "HP", icon: "/ui/skills/hitpoints.png" },
+	{ key: "ranged", label: "Rng", icon: "/ui/skills/ranged.png" },
+	{ key: "magic", label: "Mag", icon: "/ui/skills/magic.png" },
+	{ key: "prayer", label: "Pray", icon: "/ui/skills/prayer.png" },
+];
 
 const VERIFICATION_WINDOW_MS = 5 * 60 * 1000;
 
@@ -142,6 +167,10 @@ function ProfileRoute() {
 		api.playerAccounts.list,
 		isAuthenticated ? {} : undefined,
 	);
+	const accountStats = useQuery(
+		api.playerAccountStats.listForUser,
+		isAuthenticated ? {} : undefined,
+	);
 	const addAccount = useMutation(api.playerAccounts.add);
 	const deleteAccount = useMutation(api.playerAccounts.delete);
 	const setActiveAccount = useMutation(api.users.setActiveAccount);
@@ -149,6 +178,7 @@ function ProfileRoute() {
 	const startVerification = useAction(api.verification.start);
 	const verifyAccount = useAction(api.verification.verify);
 	const saveHeadshot = useAction(api.headshots.saveHeadshot);
+	const refreshStats = useAction(api.playerAccountStatsActions.refresh);
 
 	const [username, setUsername] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -164,6 +194,8 @@ function ProfileRoute() {
 	const [headshotErrors, setHeadshotErrors] = useState<
 		Record<string, string | undefined>
 	>({});
+	const [refreshingStatsId, setRefreshingStatsId] =
+		useState<Id<"playerAccounts"> | null>(null);
 	const [verificationState, setVerificationState] = useState<
 		Record<string, VerificationState>
 	>({});
@@ -212,6 +244,10 @@ function ProfileRoute() {
 			}),
 		[],
 	);
+	const accountStatsMap = useMemo(() => {
+		const stats = accountStats ?? [];
+		return new Map(stats.map((entry) => [entry.accountId, entry]));
+	}, [accountStats]);
 
 	useEffect(() => {
 		if (!shouldTick) {
@@ -255,6 +291,20 @@ function ProfileRoute() {
 			toast.error(message);
 		} finally {
 			setIsSubmitting(false);
+		}
+	};
+
+	const handleRefreshStats = async (accountId: Id<"playerAccounts">) => {
+		setRefreshingStatsId(accountId);
+		try {
+			await refreshStats({ accountId, force: true });
+			toast.success("Hiscores refreshed");
+		} catch (error) {
+			const message =
+				error instanceof Error ? error.message : "Failed to refresh hiscores";
+			toast.error(message);
+		} finally {
+			setRefreshingStatsId((prev) => (prev === accountId ? null : prev));
 		}
 	};
 
@@ -459,7 +509,9 @@ function ProfileRoute() {
 											alt={`${user?.name ?? "Adventurer"} avatar`}
 										/>
 									) : (
-										<span>{getAccountInitials(user?.name ?? "Adventurer")}</span>
+										<span>
+											{getAccountInitials(user?.name ?? "Adventurer")}
+										</span>
 									)}
 								</span>
 								<span className="profile-user-name">
@@ -634,6 +686,13 @@ function ProfileRoute() {
 										const verifiedAt = account.lastVerifiedAt
 											? dateFormatter.format(new Date(account.lastVerifiedAt))
 											: null;
+										const statsEntry = accountStatsMap.get(account._id);
+										const statsSummary = statsEntry?.summary;
+										const statsUpdatedLabel = statsEntry?.lastUpdated
+											? dateFormatter.format(new Date(statsEntry.lastUpdated))
+											: "Not fetched yet";
+										const isStatsStale = statsEntry?.isStale ?? true;
+										const isRefreshingStats = refreshingStatsId === account._id;
 										const isHeadshotOpen = headshotEditingId === account._id;
 										const isHeadshotSaving = headshotSavingId === account._id;
 										const headshotError = headshotErrors[account._id];
@@ -650,18 +709,32 @@ function ProfileRoute() {
 															<p className="profile-account-name">
 																{account.username}
 															</p>
-															<span
-																className={`account-status account-status-${status}`}
-															>
-																{status === "verified" ? (
-																	<ShieldCheck className="h-3.5 w-3.5" />
-																) : status === "pending" ? (
-																	<ShieldAlert className="h-3.5 w-3.5" />
-																) : (
-																	<ShieldQuestion className="h-3.5 w-3.5" />
-																)}
-																{statusLabel}
-															</span>
+															{status === "verified" ? (
+																<Tooltip>
+																	<TooltipTrigger
+																		className={`account-status account-status-${status}`}
+																	>
+																		<ShieldCheck className="h-3.5 w-3.5" />
+																		{statusLabel}
+																	</TooltipTrigger>
+																	<TooltipContent>
+																		{verifiedAt
+																			? `Verified on ${verifiedAt}`
+																			: "Verified account"}
+																	</TooltipContent>
+																</Tooltip>
+															) : (
+																<span
+																	className={`account-status account-status-${status}`}
+																>
+																	{status === "pending" ? (
+																		<ShieldAlert className="h-3.5 w-3.5" />
+																	) : (
+																		<ShieldQuestion className="h-3.5 w-3.5" />
+																	)}
+																	{statusLabel}
+																</span>
+															)}
 														</div>
 													</div>
 													<div className="profile-account-actions">
@@ -699,9 +772,6 @@ function ProfileRoute() {
 														</Button>
 													</div>
 												</div>
-												<p className="profile-account-meta">
-													Status: {statusLabel}
-												</p>
 												{isHeadshotOpen && (
 													<div className="profile-headshot-panel">
 														<div className="profile-headshot-header">
@@ -733,46 +803,32 @@ function ProfileRoute() {
 														/>
 													</div>
 												)}
-												<div className="profile-verification-panel">
-													<div className="profile-verification-header">
-														<div>
-															<p className="profile-verification-eyebrow">
-																Verification Task
-															</p>
-															<p className="profile-verification-title">
-																{status === "verified"
-																	? "Account ready for party invites"
-																	: isExpired
+												{status !== "verified" && (
+													<div className="profile-verification-panel">
+														<div className="profile-verification-header">
+															<div>
+																<p className="profile-verification-eyebrow">
+																	Verification Task
+																</p>
+																<p className="profile-verification-title">
+																	{isExpired
 																		? "Challenge expired"
 																		: status === "pending"
 																			? "Complete the action below"
 																			: "Start verification to unlock invites"}
-															</p>
+																</p>
+															</div>
+															<span
+																className={`profile-verification-badge profile-verification-badge-${status}`}
+															>
+																{status === "pending" ? (
+																	<Clock3 className="h-3.5 w-3.5" />
+																) : (
+																	<Sparkles className="h-3.5 w-3.5" />
+																)}
+																{statusLabel}
+															</span>
 														</div>
-														<span
-															className={`profile-verification-badge profile-verification-badge-${status}`}
-														>
-															{status === "verified" ? (
-																<CheckCircle2 className="h-3.5 w-3.5" />
-															) : status === "pending" ? (
-																<Clock3 className="h-3.5 w-3.5" />
-															) : (
-																<Sparkles className="h-3.5 w-3.5" />
-															)}
-															{statusLabel}
-														</span>
-													</div>
-													{status === "verified" ? (
-														<div className="profile-verification-verified">
-															<p>
-																Verification complete. You can request to join
-																parties immediately.
-															</p>
-															{verifiedAt && (
-																<span>Verified on {verifiedAt}</span>
-															)}
-														</div>
-													) : (
 														<div className="profile-verification-body">
 															<p className="profile-verification-instructions">
 																{instructionText}
@@ -872,7 +928,87 @@ function ProfileRoute() {
 																</div>
 															)}
 														</div>
+													</div>
+												)}
+												<div className="profile-stats-panel">
+													<div className="profile-stats-header">
+														<div>
+															<p className="profile-stats-eyebrow">
+																Hiscores snapshot
+															</p>
+															<p className="profile-stats-title">
+																Combat snapshot
+															</p>
+														</div>
+														<Button
+															variant="secondary"
+															className="profile-secondary profile-stats-refresh"
+															disabled={isRefreshingStats}
+															onClick={() => handleRefreshStats(account._id)}
+														>
+															{isRefreshingStats ? (
+																<Loader2 className="h-4 w-4 animate-spin" />
+															) : (
+																<RefreshCw className="h-4 w-4" />
+															)}
+															{isRefreshingStats ? "Refreshing..." : "Refresh"}
+														</Button>
+													</div>
+													{statsSummary ? (
+														<div className="profile-stats-body">
+															<div className="profile-stats-metrics">
+																<div className="profile-stats-metric">
+																	<span>Combat</span>
+																	<strong>
+																		{numberFormatter.format(
+																			statsSummary.combatLevel,
+																		)}
+																	</strong>
+																</div>
+																<div className="profile-stats-metric">
+																	<span>Total</span>
+																	<strong>
+																		{numberFormatter.format(
+																			statsSummary.totalLevel,
+																		)}
+																	</strong>
+																</div>
+															</div>
+															<div className="profile-stats-skills">
+																{COMBAT_SKILL_LABELS.map((skill) => (
+																	<div
+																		key={skill.key}
+																		className="profile-stats-skill"
+																	>
+																		<span className="profile-stats-skill-label">
+																			<img
+																				src={skill.icon}
+																				alt={`${skill.label} icon`}
+																				className="profile-stats-skill-icon"
+																				loading="lazy"
+																			/>
+																			{skill.label}
+																		</span>
+																		<strong>
+																			{numberFormatter.format(
+																				statsSummary.combatSkills[skill.key],
+																			)}
+																		</strong>
+																	</div>
+																))}
+															</div>
+														</div>
+													) : (
+														<p className="profile-stats-empty">
+															No snapshot yet. Refresh to pull from hiscores.
+														</p>
 													)}
+													<div className="profile-stats-footer">
+														<span>Updated {statsUpdatedLabel}</span>
+														{isStatsStale && (
+															<span className="profile-stats-stale">Stale</span>
+														)}
+													</div>
 												</div>
 											</div>
 										);
