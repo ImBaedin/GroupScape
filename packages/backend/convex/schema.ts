@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { statsSummaryValidator } from "./statsSummary";
 
 const memberStatus = v.union(v.literal("pending"), v.literal("accepted"));
+const memberRole = v.union(v.literal("leader"), v.literal("member"));
 const partyStatus = v.union(v.literal("open"), v.literal("closed"));
 const verificationStatus = v.union(
 	v.literal("unverified"),
@@ -81,9 +82,10 @@ export default defineSchema({
 		members: v.array(
 			v.object({
 				memberId: v.id("users"),
-				playerAccountId: v.id("playerAccounts"),
+				playerAccountId: v.optional(v.id("playerAccounts")),
 
 				status: memberStatus,
+				role: memberRole,
 			}),
 		),
 

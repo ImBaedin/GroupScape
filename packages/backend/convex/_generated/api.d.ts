@@ -12,6 +12,7 @@ import type * as auth from "../auth.js";
 import type * as headshots from "../headshots.js";
 import type * as healthCheck from "../healthCheck.js";
 import type * as http from "../http.js";
+import type * as lib_auth from "../lib/auth.js";
 import type * as osrsHiscores from "../osrsHiscores.js";
 import type * as parties from "../parties.js";
 import type * as partiesActions from "../partiesActions.js";
@@ -37,6 +38,7 @@ declare const fullApi: ApiFromModules<{
   headshots: typeof headshots;
   healthCheck: typeof healthCheck;
   http: typeof http;
+  "lib/auth": typeof lib_auth;
   osrsHiscores: typeof osrsHiscores;
   parties: typeof parties;
   partiesActions: typeof partiesActions;

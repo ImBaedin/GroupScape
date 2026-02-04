@@ -67,7 +67,9 @@ function PartiesRoute() {
 			partyList.reduce(
 				(total, party) =>
 					total +
-					party.members.filter((member) => member.status === "pending").length,
+					party.members.filter(
+						(member) => member.role !== "leader" && member.status === "pending",
+					).length,
 				0,
 			),
 		[partyList],
@@ -77,8 +79,10 @@ function PartiesRoute() {
 			partyList.reduce(
 				(total, party) =>
 					total +
-					party.members.filter((member) => member.status === "accepted")
-						.length +
+					party.members.filter(
+						(member) =>
+							member.role !== "leader" && member.status === "accepted",
+					).length +
 					1,
 				0,
 			),
@@ -268,83 +272,88 @@ function PartiesRoute() {
 							) : (
 								<div className="party-list">
 									{displayedParties.map((party) => {
-										const acceptedCount = party.members.filter(
-											(member) => member.status === "accepted",
-										).length + 1;
-											const pendingCount = party.members.filter(
-												(member) => member.status === "pending",
-											).length;
-											const createdAt = party.createdAt ?? party._creationTime;
-											const updatedAt = party.updatedAt ?? createdAt;
-											const openSlots = Math.max(
-												0,
-												party.partySizeLimit - acceptedCount,
-											);
-											const ownerLabel = formatOwnerLabel(party.ownerId);
+										const acceptedCount =
+											party.members.filter(
+												(member) =>
+													member.role !== "leader" &&
+													member.status === "accepted",
+											).length + 1;
+										const pendingCount = party.members.filter(
+											(member) =>
+												member.role !== "leader" &&
+												member.status === "pending",
+										).length;
+										const createdAt = party.createdAt ?? party._creationTime;
+										const updatedAt = party.updatedAt ?? createdAt;
+										const openSlots = Math.max(
+											0,
+											party.partySizeLimit - acceptedCount,
+										);
+										const ownerLabel = formatOwnerLabel(party.ownerId);
 
-											return (
-												<div key={party._id} className="party-list-card">
-													<div className="party-list-header">
-														<div>
-															<div className="party-list-title">
-																<Crown className="h-4 w-4" />
-																<span>{party.name}</span>
-															</div>
-															<p className="party-list-owner">
-																Leader: {ownerLabel}
-															</p>
+										return (
+											<div key={party._id} className="party-list-card">
+												<div className="party-list-header">
+													<div>
+														<div className="party-list-title">
+															<Crown className="h-4 w-4" />
+															<span>{party.name}</span>
 														</div>
-														<span className="party-status">
-															<Users className="h-3.5 w-3.5" />
-															Open
-														</span>
+														<p className="party-list-owner">
+															Leader: {ownerLabel}
+														</p>
 													</div>
-													<p className="party-list-desc">
-														{party.description?.trim()
-															? party.description
-															: "No description yet. Add a quick summary so recruits know the vibe."}
-													</p>
-													<div className="party-list-meta">
-														<span>
-															Slots open:{" "}
-															{numberFormatter.format(openSlots)}
-														</span>
-														<span>
-															Accepted:{" "}
-															{numberFormatter.format(acceptedCount)}
-														</span>
-														<span>
-															Requests:{" "}
-															{numberFormatter.format(pendingCount)}
-														</span>
-													</div>
-													<div className="party-list-footer">
-														<span>
-															Limit:{" "}
-															{numberFormatter.format(party.partySizeLimit)}{" "}
-															players
-														</span>
-														<span>
-															Updated {dateFormatter.format(new Date(updatedAt))}
-														</span>
-													</div>
-													<div className="party-list-actions">
-														<Link
-															to="/party/$partyId"
-															params={{ partyId: party._id }}
-															className={cn(
-																buttonVariants({
-																	variant: "secondary",
-																	size: "sm",
-																}),
-																"party-view-button",
-															)}
-														>
-															View party
-														</Link>
-													</div>
+													<span className="party-status">
+														<Users className="h-3.5 w-3.5" />
+														Open
+													</span>
 												</div>
-											);
+												<p className="party-list-desc">
+													{party.description?.trim()
+														? party.description
+														: "No description yet. Add a quick summary so recruits know the vibe."}
+												</p>
+												<div className="party-list-meta">
+													<span>
+														Slots open:{" "}
+														{numberFormatter.format(openSlots)}
+													</span>
+													<span>
+														Accepted:{" "}
+														{numberFormatter.format(acceptedCount)}
+													</span>
+													<span>
+														Requests:{" "}
+														{numberFormatter.format(pendingCount)}
+													</span>
+												</div>
+												<div className="party-list-footer">
+													<span>
+														Limit:{" "}
+														{numberFormatter.format(party.partySizeLimit)}{" "}
+														players
+													</span>
+													<span>
+														Updated {dateFormatter.format(new Date(updatedAt))}
+													</span>
+												</div>
+												<div className="party-list-actions">
+													<Link
+														to="/party/$partyId"
+														params={{ partyId: party._id }}
+														className={cn(
+															buttonVariants({
+																variant: "secondary",
+																size: "sm",
+															}),
+															"party-view-button",
+														)}
+													>
+														View party
+													</Link>
+												</div>
+											</div>
+										);
 										})}
 									</div>
 								)}

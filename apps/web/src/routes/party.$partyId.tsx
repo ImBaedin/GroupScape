@@ -1,7 +1,7 @@
 import { api } from "@GroupScape/backend/convex/_generated/api";
 import type { Id } from "@GroupScape/backend/convex/_generated/dataModel";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react";
+import { useConvex, useConvexAuth, useMutation, useQuery } from "convex/react";
 import {
 	ArrowLeft,
 	BadgeCheck,
@@ -39,36 +39,22 @@ const statusLabels = {
 
 type PartyMember = {
 	memberId: Id<"users">;
-	playerAccountId: Id<"playerAccounts">;
-	status: "pending" | "accepted";
-};
-
-type PartyMemberStats = {
-	memberId: Id<"users">;
 	playerAccountId?: Id<"playerAccounts">;
-	username?: string;
-	headshotUrl?: string;
-	status: "leader" | "accepted" | "pending";
-	verificationStatus?: "unverified" | "pending" | "verified";
-	summary?: StatsSummary;
-	lastUpdated?: number;
-	isStale: boolean;
+	status: "pending" | "accepted";
+	role?: "leader" | "member";
 };
 
 type PartyData = {
-	party: {
-		_id: Id<"parties">;
-		_creationTime: number;
-		ownerId: Id<"users">;
-		members: PartyMember[];
-		name: string;
-		description?: string;
-		partySizeLimit: number;
-		status?: "open" | "closed";
-		createdAt?: number;
-		updatedAt?: number;
-	};
-	memberStats: PartyMemberStats[];
+	_id: Id<"parties">;
+	_creationTime: number;
+	ownerId: Id<"users">;
+	members: PartyMember[];
+	name: string;
+	description?: string;
+	partySizeLimit: number;
+	status?: "open" | "closed";
+	createdAt?: number;
+	updatedAt?: number;
 };
 
 export const Route = createFileRoute("/party/$partyId")({
@@ -78,11 +64,11 @@ export const Route = createFileRoute("/party/$partyId")({
 function PartyDetailRoute() {
 	const { partyId } = Route.useParams();
 	const { isAuthenticated, isLoading } = useConvexAuth();
+	const convex = useConvex();
 	const appUser = useQuery(
 		api.users.getCurrent,
 		isAuthenticated ? {} : "skip",
 	);
-	const fetchParty = useAction(api.partiesActions.getWithMemberStats);
 	const accounts = useQuery(
 		api.playerAccounts.list,
 		isAuthenticated ? {} : "skip",
@@ -136,7 +122,7 @@ function PartyDetailRoute() {
 		setPartyData(undefined);
 		(async () => {
 			try {
-				const data = await fetchParty({
+				const data = await convex.query(api.parties.get, {
 					partyId: partyId as Id<"parties">,
 				});
 				if (!cancelled) {
@@ -156,12 +142,12 @@ function PartyDetailRoute() {
 		return () => {
 			cancelled = true;
 		};
-	}, [fetchParty, isAuthenticated, partyId]);
+	}, [convex, isAuthenticated, partyId]);
 
 	useEffect(() => {
-		if (!partyData?.party) return;
-		setDraftName(partyData.party.name);
-		setDraftDescription(partyData.party.description ?? "");
+		if (!partyData) return;
+		setDraftName(partyData.name);
+		setDraftDescription(partyData.description ?? "");
 		setDetailsError(null);
 	}, [partyData]);
 
@@ -178,20 +164,32 @@ function PartyDetailRoute() {
 	);
 	const selectedStatus =
 		(selectedAccount?.verificationStatus ?? "unverified") as keyof typeof statusLabels;
-	const party = partyData?.party ?? null;
-	const memberStats = partyData?.memberStats ?? [];
+	const party = partyData ?? null;
 	const isOwner = Boolean(party && appUser && party.ownerId === appUser._id);
 	const memberEntry =
 		party && appUser
 			? party.members.find((member) => member.memberId === appUser._id)
 			: undefined;
 	const memberStatus = memberEntry?.status;
+	const leaderEntry = party?.members.find((member) => member.role === "leader");
 	const acceptedMembers = party
-		? party.members.filter((member) => member.status === "accepted")
+		? party.members.filter(
+				(member) => member.role !== "leader" && member.status === "accepted",
+			)
 		: [];
 	const pendingMembers = party
-		? party.members.filter((member) => member.status === "pending")
+		? party.members.filter(
+				(member) => member.role !== "leader" && member.status === "pending",
+			)
 		: [];
+	const leaderMember = party
+		? leaderEntry ?? {
+				memberId: party.ownerId,
+				playerAccountId: undefined,
+				status: "accepted",
+				role: "leader",
+			}
+		: null;
 	const acceptedCount = acceptedMembers.length + 1;
 	const pendingCount = pendingMembers.length;
 	const openSlots = party
@@ -215,32 +213,13 @@ function PartyDetailRoute() {
 		[],
 	);
 
-	const memberStatsMap = useMemo(() => {
-		const map = new Map<string, (typeof memberStats)[number]>();
-		for (const entry of memberStats) {
-			const key = `${entry.memberId}:${entry.playerAccountId ?? "leader"}`;
-			map.set(key, entry);
-		}
-		return map;
-	}, [memberStats]);
-
-	const getMemberStats = (
-		memberId: Id<"users">,
-		playerAccountId?: Id<"playerAccounts">,
-	) => memberStatsMap.get(`${memberId}:${playerAccountId ?? "leader"}`);
-
-	const leaderStatsEntry = useMemo(
-		() => memberStats.find((entry) => entry.status === "leader"),
-		[memberStats],
-	);
-
 	const formatMemberName = (
 		memberId: Id<"users">,
 		playerAccountId?: Id<"playerAccounts">,
+		preferredName?: string,
 	) => {
-		const statsEntry = getMemberStats(memberId, playerAccountId);
 		const known =
-			statsEntry?.username ??
+			preferredName?.trim() ||
 			(playerAccountId ? accountMap.get(playerAccountId) : undefined);
 		const suffix = playerAccountId
 			? playerAccountId.slice(-4).toUpperCase()
@@ -279,6 +258,9 @@ function PartyDetailRoute() {
 		}
 		if (!selectedAccount) {
 			return "Select an account to request a seat.";
+		}
+		if (isOwner) {
+			return "You lead this party.";
 		}
 		if (memberStatus === "accepted") {
 			return "You are already in this party.";
@@ -406,6 +388,7 @@ function PartyDetailRoute() {
 		approve: boolean,
 	) => {
 		if (!party) return;
+		if (!member.playerAccountId) return;
 		const baseKey = `${member.memberId}:${member.playerAccountId}`;
 		const actionKey = `${baseKey}:${approve ? "approve" : "reject"}`;
 		setReviewingKey(actionKey);
@@ -739,128 +722,29 @@ function PartyDetailRoute() {
 							</CardHeader>
 							<CardContent className="party-roster-body">
 								<div className="party-roster-grid">
-									<div className="party-roster-item party-roster-item-accepted">
-										<div className="party-roster-info">
-											<div className="party-roster-header">
-												<div className="party-roster-identity">
-													<div
-														className={cn(
-															"party-roster-avatar",
-															leaderStatsEntry?.headshotUrl &&
-																"party-roster-avatar-image",
-														)}
-													>
-														{leaderStatsEntry?.headshotUrl ? (
-															<img
-																src={leaderStatsEntry.headshotUrl}
-																alt="Leader headshot"
-															/>
-														) : (
-															<span>
-																{getAccountInitials(
-																	leaderStatsEntry?.username ??
-																		formatMemberName(
-																			party.ownerId,
-																			leaderStatsEntry?.playerAccountId ??
-																				undefined,
-																		),
-																)}
-															</span>
-														)}
-													</div>
-													<div>
-														<p className="party-roster-name">
-															{formatMemberName(
-																party.ownerId,
-																leaderStatsEntry?.playerAccountId ?? undefined,
-															)}
-														</p>
-														<span className="party-roster-sub">
-															Party leader
-														</span>
-													</div>
-												</div>
-												<span className="party-roster-status party-roster-status-accepted">
-													<Crown className="h-3.5 w-3.5" />
-													Leader
-												</span>
-											</div>
-											<RosterStats
-												summary={leaderStatsEntry?.summary}
-												lastUpdated={leaderStatsEntry?.lastUpdated}
-												isStale={leaderStatsEntry?.isStale ?? true}
-												numberFormatter={numberFormatter}
-												dateFormatter={dateFormatter}
-											/>
-										</div>
-									</div>
-									{acceptedMembers.map((member) => {
-										const statsEntry = getMemberStats(
-											member.memberId,
-											member.playerAccountId,
-										);
-										const displayName = formatMemberName(
-											member.memberId,
-											member.playerAccountId,
-										);
-										return (
-											<div
-												key={`${member.memberId}-accepted-${member.playerAccountId}`}
-												className="party-roster-item party-roster-item-accepted"
-											>
-											<div className="party-roster-info">
-												<div className="party-roster-header">
-													<div className="party-roster-identity">
-														<div
-															className={cn(
-																"party-roster-avatar",
-																statsEntry?.headshotUrl &&
-																	"party-roster-avatar-image",
-															)}
-														>
-															{statsEntry?.headshotUrl ? (
-																<img
-																	src={statsEntry.headshotUrl}
-																	alt={`${displayName} headshot`}
-																/>
-															) : (
-																<span>
-																	{getAccountInitials(
-																		statsEntry?.username ?? displayName,
-																	)}
-																</span>
-															)}
-														</div>
-														<div>
-															<p className="party-roster-name">
-																{displayName}
-															</p>
-															<span className="party-roster-sub">
-																Accepted member
-															</span>
-														</div>
-													</div>
-													<span className="party-roster-status party-roster-status-accepted">
-														<BadgeCheck className="h-3.5 w-3.5" />
-														Accepted
-													</span>
-												</div>
-												<RosterStats
-													summary={statsEntry?.summary}
-													lastUpdated={statsEntry?.lastUpdated}
-													isStale={statsEntry?.isStale ?? true}
-													numberFormatter={numberFormatter}
-													dateFormatter={dateFormatter}
-												/>
-											</div>
-											</div>
-										);
-									})}
+									{leaderMember && (
+										<RosterMemberCard
+											key={`${leaderMember.memberId}-leader`}
+											member={leaderMember}
+											partyOwnerId={party.ownerId}
+											numberFormatter={numberFormatter}
+											dateFormatter={dateFormatter}
+											formatMemberName={formatMemberName}
+											getAccountInitials={getAccountInitials}
+										/>
+									)}
+									{acceptedMembers.map((member) => (
+										<RosterMemberCard
+											key={`${member.memberId}-accepted-${member.playerAccountId}`}
+											member={member}
+											partyOwnerId={party.ownerId}
+											numberFormatter={numberFormatter}
+											dateFormatter={dateFormatter}
+											formatMemberName={formatMemberName}
+											getAccountInitials={getAccountInitials}
+										/>
+									))}
 									{pendingMembers.map((member) => {
-										const statsEntry = getMemberStats(
-											member.memberId,
-											member.playerAccountId,
-										);
 										const displayName = formatMemberName(
 											member.memberId,
 											member.playerAccountId,
@@ -876,22 +760,11 @@ function PartyDetailRoute() {
 														<div
 															className={cn(
 																"party-roster-avatar",
-																statsEntry?.headshotUrl &&
-																	"party-roster-avatar-image",
 															)}
 														>
-															{statsEntry?.headshotUrl ? (
-																<img
-																	src={statsEntry.headshotUrl}
-																	alt={`${displayName} headshot`}
-																/>
-															) : (
-																<span>
-																	{getAccountInitials(
-																		statsEntry?.username ?? displayName,
-																	)}
-																</span>
-															)}
+															<span>
+																{getAccountInitials(displayName)}
+															</span>
 														</div>
 														<div>
 															<p className="party-roster-name">
@@ -1195,6 +1068,93 @@ function PartyDetailRoute() {
 						</Card>
 					</div>
 				</section>
+			</div>
+		</div>
+	);
+}
+
+type RosterMemberCardProps = {
+	member: PartyMember;
+	partyOwnerId: Id<"users">;
+	numberFormatter: Intl.NumberFormat;
+	dateFormatter: Intl.DateTimeFormat;
+	formatMemberName: (
+		memberId: Id<"users">,
+		playerAccountId?: Id<"playerAccounts">,
+		preferredName?: string,
+	) => string;
+	getAccountInitials: (label: string) => string;
+};
+
+function RosterMemberCard({
+	member,
+	partyOwnerId,
+	numberFormatter,
+	dateFormatter,
+	formatMemberName,
+	getAccountInitials,
+}: RosterMemberCardProps) {
+	const profile = useQuery(
+		api.playerAccounts.getMemberProfile,
+		member.playerAccountId ? { accountId: member.playerAccountId } : "skip",
+	);
+	const isLeader = member.role === "leader" || member.memberId === partyOwnerId;
+	const displayName = formatMemberName(
+		member.memberId,
+		member.playerAccountId,
+		profile?.username,
+	);
+	const initials = getAccountInitials(displayName);
+	const headshotUrl = profile?.headshotUrl;
+	const StatusIcon = isLeader ? Crown : BadgeCheck;
+	const subLabel = isLeader ? "Party leader" : "Accepted member";
+	const statusLabel = isLeader ? "Leader" : "Accepted";
+	const statsBody = (() => {
+		if (!member.playerAccountId) {
+			return <div className="party-stats-empty">No linked account yet.</div>;
+		}
+		if (profile === undefined) {
+			return <div className="party-stats-empty">Loading stats...</div>;
+		}
+		return (
+			<RosterStats
+				summary={profile.summary}
+				lastUpdated={profile.lastUpdated}
+				isStale={profile.isStale}
+				numberFormatter={numberFormatter}
+				dateFormatter={dateFormatter}
+			/>
+		);
+	})();
+
+	return (
+		<div className="party-roster-item party-roster-item-accepted">
+			<div className="party-roster-info">
+				<div className="party-roster-header">
+					<div className="party-roster-identity">
+						<div
+							className={cn(
+								"party-roster-avatar",
+								headshotUrl && "party-roster-avatar-image",
+							)}
+						>
+							{headshotUrl ? (
+								<img src={headshotUrl} alt={`${displayName} headshot`} />
+							) : (
+								<span>{initials}</span>
+							)}
+						</div>
+						<div>
+							<p className="party-roster-name">{displayName}</p>
+							<span className="party-roster-sub">{subLabel}</span>
+						</div>
+					</div>
+					<span className="party-roster-status party-roster-status-accepted">
+						<StatusIcon className="h-3.5 w-3.5" />
+						{statusLabel}
+					</span>
+				</div>
+				{statsBody}
 			</div>
 		</div>
 	);

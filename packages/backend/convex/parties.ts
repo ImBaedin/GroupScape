@@ -2,24 +2,23 @@ import { ConvexError, v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { internalMutation, mutation, query } from "./_generated/server";
-import { STATS_STALE_MS, statsSummaryValidator } from "./statsSummary";
+import { requireUser } from "./lib/auth";
 
 const memberStatusValidator = v.union(
 	v.literal("pending"),
 	v.literal("accepted"),
 );
-
-const partyStatusValidator = v.union(v.literal("open"), v.literal("closed"));
-const verificationStatusValidator = v.union(
-	v.literal("unverified"),
-	v.literal("pending"),
-	v.literal("verified"),
+const partyMemberRoleValidator = v.union(
+	v.literal("leader"),
+	v.literal("member"),
 );
 
+const partyStatusValidator = v.union(v.literal("open"), v.literal("closed"));
 const partyMemberValidator = v.object({
 	memberId: v.id("users"),
-	playerAccountId: v.id("playerAccounts"),
+	playerAccountId: v.optional(v.id("playerAccounts")),
 	status: memberStatusValidator,
+	role: v.optional(partyMemberRoleValidator),
 });
 
 const partyValidator = v.object({
@@ -36,27 +35,6 @@ const partyValidator = v.object({
 	updatedAt: v.optional(v.number()),
 });
 
-const partyMemberStatsValidator = v.object({
-	memberId: v.id("users"),
-	playerAccountId: v.optional(v.id("playerAccounts")),
-	username: v.optional(v.string()),
-	headshotUrl: v.optional(v.string()),
-	status: v.union(
-		v.literal("leader"),
-		v.literal("accepted"),
-		v.literal("pending"),
-	),
-	verificationStatus: v.optional(verificationStatusValidator),
-	summary: v.optional(statsSummaryValidator),
-	lastUpdated: v.optional(v.number()),
-	isStale: v.boolean(),
-});
-
-const partyWithStatsValidator = v.object({
-	party: partyValidator,
-	memberStats: v.array(partyMemberStatsValidator),
-});
-
 const partyMetricsSnapshotValidator = v.object({
 	activeParties: v.number(),
 	activePlayers: v.number(),
@@ -64,8 +42,6 @@ const partyMetricsSnapshotValidator = v.object({
 	totalPlayers: v.number(),
 	updatedAt: v.number(),
 });
-
-type AuthedCtx = QueryCtx | MutationCtx;
 
 const PARTY_METRICS_KIND = "partyMetrics";
 
@@ -84,25 +60,9 @@ const buildPartySearchText = (name: string, description?: string) => {
 
 const isPartyActive = (status: Doc<"parties">["status"]) => status !== "closed";
 
-const getPartyPlayerCount = (party: Doc<"parties">) =>
-	party.members.length + 1;
-
-const requireUser = async (ctx: AuthedCtx) => {
-	const identity = await ctx.auth.getUserIdentity();
-	if (identity === null) {
-		throw new ConvexError("Not authenticated");
-	}
-
-	const user = await ctx.db
-		.query("users")
-		.filter((q) => q.eq(q.field("tokenIdentifier"), identity.tokenIdentifier))
-		.first();
-
-	if (!user) {
-		throw new ConvexError("User not found");
-	}
-
-	return user as Doc<"users">;
+const getPartyPlayerCount = (party: Doc<"parties">) => {
+	const hasLeader = party.members.some((member) => member.role === "leader");
+	return party.members.length + (hasLeader ? 0 : 1);
 };
 
 const getPartyMetricsDoc = async (ctx: MutationCtx | QueryCtx) =>
@@ -312,94 +272,6 @@ export const get = query({
 	},
 });
 
-export const getWithMemberStats = query({
-	args: {
-		partyId: v.id("parties"),
-	},
-	returns: v.union(partyWithStatsValidator, v.null()),
-	handler: async (ctx, args) => {
-		await requireUser(ctx);
-
-		const party = await ctx.db.get(args.partyId);
-		if (!party) {
-			return null;
-		}
-
-		const owner = await ctx.db.get(party.ownerId);
-		const leaderAccountId =
-			owner?.activePlayerAccountId ?? undefined;
-
-		const accountIds = new Set<Doc<"playerAccounts">["_id"]>();
-		if (leaderAccountId) {
-			accountIds.add(leaderAccountId);
-		}
-		for (const member of party.members) {
-			accountIds.add(member.playerAccountId);
-		}
-
-		const accountList = await Promise.all(
-			Array.from(accountIds).map((accountId) => ctx.db.get(accountId)),
-		);
-
-		const accountMap = new Map<Doc<"playerAccounts">["_id"], Doc<"playerAccounts">>();
-		for (const account of accountList) {
-			if (account) {
-				accountMap.set(account._id, account);
-			}
-		}
-
-		const statsEntries = await Promise.all(
-			Array.from(accountMap.values()).map(async (account) => ({
-				accountId: account._id,
-				stats: account.stats ? await ctx.db.get(account.stats) : null,
-			})),
-		);
-
-		const statsMap = new Map<Doc<"playerAccounts">["_id"], Doc<"playerAccountStats">>();
-		for (const entry of statsEntries) {
-			if (entry.stats) {
-				statsMap.set(entry.accountId, entry.stats);
-			}
-		}
-
-		const now = Date.now();
-
-		const buildEntry = async (
-			memberId: Doc<"users">["_id"],
-			playerAccountId: Doc<"playerAccounts">["_id"] | undefined,
-			status: "leader" | "accepted" | "pending",
-		) => {
-			const account = playerAccountId ? accountMap.get(playerAccountId) : undefined;
-			const stats = account ? statsMap.get(account._id) : undefined;
-			const lastUpdated = stats?.lastUpdated;
-			const isStale = !lastUpdated || now - lastUpdated > STATS_STALE_MS;
-			const headshotUrl = account?.accountImageStorageId
-				? await ctx.storage.getUrl(account.accountImageStorageId)
-				: undefined;
-			return {
-				memberId,
-				playerAccountId,
-				username: account?.username,
-				headshotUrl: headshotUrl ?? undefined,
-				status,
-				verificationStatus: account?.verificationStatus,
-				summary: stats?.summary,
-				lastUpdated,
-				isStale,
-			};
-		};
-
-		const memberStats = await Promise.all([
-			buildEntry(party.ownerId, leaderAccountId, "leader"),
-			...party.members.map((member) =>
-				buildEntry(member.memberId, member.playerAccountId, member.status),
-			),
-		]);
-
-		return { party, memberStats };
-	},
-});
-
 export const create = mutation({
 	args: {
 		name: v.string(),
@@ -412,11 +284,17 @@ export const create = mutation({
 
 		const now = Date.now();
 		const searchText = buildPartySearchText(args.name, args.description);
+		const leaderEntry = {
+			memberId: user._id,
+			playerAccountId: user.activePlayerAccountId ?? undefined,
+			status: "accepted" as const,
+			role: "leader" as const,
+		};
 
 		// Create the party
 		const partyId = await ctx.db.insert("parties", {
 			ownerId: user._id,
-			members: [],
+			members: [leaderEntry],
 			name: args.name,
 			description: args.description,
 			searchText,
@@ -466,19 +344,20 @@ export const requestJoin = mutation({
 			throw new ConvexError("Not authorized to use this account");
 		}
 
+		const isOwner = party.ownerId === user._id;
+		if (isOwner) {
+			throw new ConvexError("Party owner is already part of this party");
+		}
+
 		const alreadyMember = party.members.some(
 			(member) =>
-				member.memberId === user._id ||
-				member.playerAccountId === args.playerAccountId,
+				member.role !== "leader" &&
+				(member.memberId === user._id ||
+					member.playerAccountId === args.playerAccountId),
 		);
 
 		if (alreadyMember) {
 			throw new ConvexError("Already requested to join");
-		}
-
-		const isOwner = party.ownerId === user._id;
-		if (isOwner) {
-			throw new ConvexError("Party owner is already part of this party");
 		}
 
 		if (!isOwner && account.verificationStatus !== "verified") {
@@ -492,6 +371,7 @@ export const requestJoin = mutation({
 				memberId: user._id,
 				playerAccountId: args.playerAccountId,
 				status: "pending" as const,
+				role: "member" as const,
 			},
 		];
 
@@ -536,6 +416,7 @@ export const reviewRequest = mutation({
 
 		const memberIndex = party.members.findIndex(
 			(member) =>
+				member.role !== "leader" &&
 				member.memberId === args.memberId &&
 				member.playerAccountId === args.playerAccountId,
 		);
@@ -557,7 +438,9 @@ export const reviewRequest = mutation({
 			}
 
 			const acceptedCount =
-				party.members.filter((entry) => entry.status === "accepted").length + 1;
+				party.members.filter(
+					(entry) => entry.role !== "leader" && entry.status === "accepted",
+				).length + 1;
 
 			if (acceptedCount >= party.partySizeLimit) {
 				throw new ConvexError("Party is full");
@@ -731,6 +614,7 @@ export const leave = mutation({
 
 		const memberIndex = party.members.findIndex(
 			(member) =>
+				member.role !== "leader" &&
 				member.memberId === user._id &&
 				member.playerAccountId === args.playerAccountId,
 		);
@@ -807,5 +691,54 @@ export const backfillSearchAndMetrics = internalMutation({
 		});
 
 		return snapshot;
+	},
+});
+
+export const backfillMemberRoles = internalMutation({
+	args: {},
+	returns: v.object({
+		updatedParties: v.number(),
+		leadersAdded: v.number(),
+	}),
+	handler: async (ctx) => {
+		const parties = await ctx.db.query("parties").collect();
+		let updatedParties = 0;
+		let leadersAdded = 0;
+
+		for (const party of parties) {
+			let changed = false;
+			const nextMembers = party.members.map((member) => {
+				const resolvedRole = member.role ?? "member";
+				if (resolvedRole !== member.role) {
+					changed = true;
+				}
+				return {
+					...member,
+					role: resolvedRole,
+				};
+			});
+
+			const hasLeader = nextMembers.some((member) => member.role === "leader");
+			if (!hasLeader) {
+				const owner = await ctx.db.get(party.ownerId);
+				nextMembers.unshift({
+					memberId: party.ownerId,
+					playerAccountId: owner?.activePlayerAccountId ?? undefined,
+					status: "accepted" as const,
+					role: "leader" as const,
+				});
+				changed = true;
+				leadersAdded += 1;
+			}
+
+			if (changed) {
+				await ctx.db.patch(party._id, {
+					members: nextMembers,
+				});
+				updatedParties += 1;
+			}
+		}
+
+		return { updatedParties, leadersAdded };
 	},
 });

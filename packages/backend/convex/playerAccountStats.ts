@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
-import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { internalMutation, internalQuery, query } from "./_generated/server";
+import { getOptionalUser, requireUser } from "./lib/auth";
 import { getStatsByGamemode } from "./osrsHiscores";
 import {
 	STATS_STALE_MS,
@@ -33,25 +33,6 @@ const accountStatsSummaryValidator = v.object({
 	isStale: v.boolean(),
 });
 
-type AuthedCtx = QueryCtx | MutationCtx;
-
-const requireUser = async (ctx: AuthedCtx) => {
-	const identity = await ctx.auth.getUserIdentity();
-	if (identity === null) {
-		throw new ConvexError("Not authenticated");
-	}
-
-	const user = await ctx.db
-		.query("users")
-		.filter((q) => q.eq(q.field("tokenIdentifier"), identity.tokenIdentifier))
-		.first();
-
-	if (!user) {
-		throw new ConvexError("User not found");
-	}
-
-	return user as Doc<"users">;
-};
 
 export const getRefreshContext = internalQuery({
 	args: {
@@ -167,16 +148,7 @@ export const listForUser = query({
 	args: {},
 	returns: v.array(accountStatsSummaryValidator),
 	handler: async (ctx) => {
-		const identity = await ctx.auth.getUserIdentity();
-		if (identity === null) {
-			return [];
-		}
-
-		const user = await ctx.db
-			.query("users")
-			.filter((q) => q.eq(q.field("tokenIdentifier"), identity.tokenIdentifier))
-			.first();
-
+		const user = await getOptionalUser(ctx);
 		if (!user || user.playerAccounts.length === 0) {
 			return [];
 		}

@@ -1,7 +1,13 @@
 import { ConvexError, v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
-import type { MutationCtx, QueryCtx } from "./_generated/server";
-import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
+import {
+	internalMutation,
+	internalQuery,
+	mutation,
+	query,
+} from "./_generated/server";
+import { requireUser, getOptionalUser } from "./lib/auth";
+import { STATS_STALE_MS, statsSummaryValidator } from "./statsSummary";
 
 const verificationStatusValidator = v.union(
 	v.literal("unverified"),
@@ -37,42 +43,24 @@ const playerAccountVerificationInfoValidator = v.object({
 	verificationChallenge: v.optional(verificationChallengeValidator),
 });
 
+const memberProfileValidator = v.object({
+	accountId: v.id("playerAccounts"),
+	username: v.string(),
+	headshotUrl: v.optional(v.string()),
+	verificationStatus: v.optional(verificationStatusValidator),
+	summary: v.optional(statsSummaryValidator),
+	lastUpdated: v.optional(v.number()),
+	isStale: v.boolean(),
+});
+
 const normalizeUsername = (username: string) => username.trim();
 
-type AuthedCtx = QueryCtx | MutationCtx;
-
-const requireUser = async (ctx: AuthedCtx) => {
-	const identity = await ctx.auth.getUserIdentity();
-	if (identity === null) {
-		throw new ConvexError("Not authenticated");
-	}
-
-	const user = await ctx.db
-		.query("users")
-		.filter((q) => q.eq(q.field("tokenIdentifier"), identity.tokenIdentifier))
-		.first();
-
-	if (!user) {
-		throw new ConvexError("User not found");
-	}
-
-	return user as Doc<"users">;
-};
 
 export const list = query({
 	args: {},
 	returns: v.array(playerAccountValidator),
 	handler: async (ctx) => {
-		const identity = await ctx.auth.getUserIdentity();
-		if (identity === null) {
-			return [];
-		}
-
-		const user = await ctx.db
-			.query("users")
-			.filter((q) => q.eq(q.field("tokenIdentifier"), identity.tokenIdentifier))
-			.first();
-
+		const user = await getOptionalUser(ctx);
 		if (!user) {
 			return [];
 		}
@@ -113,6 +101,38 @@ export const getHeadshotUrl = query({
 		}
 
 		return await ctx.storage.getUrl(account.accountImageStorageId);
+	},
+});
+
+export const getMemberProfile = query({
+	args: {
+		accountId: v.id("playerAccounts"),
+	},
+	returns: memberProfileValidator,
+	handler: async (ctx, args) => {
+		await requireUser(ctx);
+
+		const account = await ctx.db.get(args.accountId);
+		if (!account) {
+			throw new ConvexError("Account not found");
+		}
+
+		const stats = account.stats ? await ctx.db.get(account.stats) : null;
+		const lastUpdated = stats?.lastUpdated;
+		const isStale = !lastUpdated || Date.now() - lastUpdated > STATS_STALE_MS;
+		const headshotUrl = account.accountImageStorageId
+			? await ctx.storage.getUrl(account.accountImageStorageId)
+			: undefined;
+
+		return {
+			accountId: account._id,
+			username: account.username,
+			headshotUrl: headshotUrl ?? undefined,
+			verificationStatus: account.verificationStatus,
+			summary: stats?.summary,
+			lastUpdated,
+			isStale,
+		};
 	},
 });
 

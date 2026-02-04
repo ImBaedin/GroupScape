@@ -151,15 +151,18 @@ function HomeComponent() {
 											</div>
 										) : (
 											<div className="guild-search-list">
-												{searchList.map((party) => {
-													const createdAt =
-														party.createdAt ?? party._creationTime;
-													const updatedAt = party.updatedAt ?? createdAt;
-													const totalPlayers = party.members.length + 1;
-													const openSlots = Math.max(
-														0,
-														party.partySizeLimit - totalPlayers,
-													);
+										{searchList.map((party) => {
+											const createdAt =
+												party.createdAt ?? party._creationTime;
+											const updatedAt = party.updatedAt ?? createdAt;
+											const memberCount = party.members.filter(
+												(member) => member.role !== "leader",
+											).length;
+											const totalPlayers = memberCount + 1;
+											const openSlots = Math.max(
+												0,
+												party.partySizeLimit - totalPlayers,
+											);
 
 													return (
 														<Link
