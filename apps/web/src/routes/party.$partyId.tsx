@@ -65,10 +65,7 @@ function PartyDetailRoute() {
 	const { partyId } = Route.useParams();
 	const { isAuthenticated, isLoading } = useConvexAuth();
 	const convex = useConvex();
-	const appUser = useQuery(
-		api.users.getCurrent,
-		isAuthenticated ? {} : "skip",
-	);
+	const appUser = useQuery(api.users.getCurrent, isAuthenticated ? {} : "skip");
 	const accounts = useQuery(
 		api.playerAccounts.list,
 		isAuthenticated ? {} : "skip",
@@ -85,9 +82,8 @@ function PartyDetailRoute() {
 	);
 	const [partyError, setPartyError] = useState<string | null>(null);
 
-	const [selectedAccountId, setSelectedAccountId] = useState<
-		Id<"playerAccounts"> | null
-	>(null);
+	const [selectedAccountId, setSelectedAccountId] =
+		useState<Id<"playerAccounts"> | null>(null);
 	const [isRequesting, setIsRequesting] = useState(false);
 	const [requestError, setRequestError] = useState<string | null>(null);
 	const [draftName, setDraftName] = useState("");
@@ -105,9 +101,8 @@ function PartyDetailRoute() {
 		if (!accounts || accounts.length === 0) return;
 		if (selectedAccountId) return;
 		setSelectedAccountId(
-			(appUser?.activePlayerAccountId ?? accounts[0]._id) as Id<
-				"playerAccounts"
-			>,
+			(appUser?.activePlayerAccountId ??
+				accounts[0]._id) as Id<"playerAccounts">,
 		);
 	}, [accounts, appUser?.activePlayerAccountId, selectedAccountId]);
 
@@ -131,9 +126,7 @@ function PartyDetailRoute() {
 			} catch (error) {
 				if (!cancelled) {
 					const message =
-						error instanceof Error
-							? error.message
-							: "Unable to load party";
+						error instanceof Error ? error.message : "Unable to load party";
 					setPartyError(message);
 					setPartyData(null);
 				}
@@ -162,8 +155,8 @@ function PartyDetailRoute() {
 	const selectedAccount = accountList.find(
 		(account) => account._id === selectedAccountId,
 	);
-	const selectedStatus =
-		(selectedAccount?.verificationStatus ?? "unverified") as keyof typeof statusLabels;
+	const selectedStatus = (selectedAccount?.verificationStatus ??
+		"unverified") as keyof typeof statusLabels;
 	const party = partyData ?? null;
 	const isOwner = Boolean(party && appUser && party.ownerId === appUser._id);
 	const memberEntry =
@@ -183,12 +176,12 @@ function PartyDetailRoute() {
 			)
 		: [];
 	const leaderMember = party
-		? leaderEntry ?? {
+		? (leaderEntry ?? {
 				memberId: party.ownerId,
 				playerAccountId: undefined,
 				status: "accepted",
 				role: "leader",
-			}
+			})
 		: null;
 	const acceptedCount = acceptedMembers.length + 1;
 	const pendingCount = pendingMembers.length;
@@ -291,9 +284,7 @@ function PartyDetailRoute() {
 			toast.success("Join request sent");
 		} catch (error) {
 			const message =
-				error instanceof Error
-					? error.message
-					: "Unable to request to join";
+				error instanceof Error ? error.message : "Unable to request to join";
 			setRequestError(message);
 			toast.error(message);
 		} finally {
@@ -350,9 +341,7 @@ function PartyDetailRoute() {
 		setStatusUpdating(true);
 		try {
 			await updateStatus({ partyId: party._id, status: nextStatus });
-			toast.success(
-				nextStatus === "open" ? "Party reopened" : "Party closed",
-			);
+			toast.success(nextStatus === "open" ? "Party reopened" : "Party closed");
 		} catch (error) {
 			const message =
 				error instanceof Error ? error.message : "Unable to update status";
@@ -382,10 +371,7 @@ function PartyDetailRoute() {
 		}
 	};
 
-	const handleReviewRequest = async (
-		member: PartyMember,
-		approve: boolean,
-	) => {
+	const handleReviewRequest = async (member: PartyMember, approve: boolean) => {
 		if (!party) return;
 		if (!member.playerAccountId) return;
 		const baseKey = `${member.memberId}:${member.playerAccountId}`;
@@ -753,45 +739,46 @@ function PartyDetailRoute() {
 												key={`${member.memberId}-pending-${member.playerAccountId}`}
 												className="party-roster-item party-roster-item-pending"
 											>
-											<div className="party-roster-info">
-												<div className="party-roster-header">
-													<div className="party-roster-identity">
-														<div
-															className={cn(
-																"party-roster-avatar",
-															)}
-														>
-															<span>
-																{getAccountInitials(displayName)}
-															</span>
+												<div className="party-roster-info">
+													<div className="party-roster-header">
+														<div className="party-roster-identity">
+															<div className={cn("party-roster-avatar")}>
+																<span>{getAccountInitials(displayName)}</span>
+															</div>
+															<div>
+																<p className="party-roster-name">
+																	{displayName}
+																</p>
+																<span className="party-roster-sub">
+																	Request awaiting approval
+																</span>
+															</div>
 														</div>
-														<div>
-															<p className="party-roster-name">
-																{displayName}
-															</p>
-															<span className="party-roster-sub">
-																Request awaiting approval
+														<div className="party-roster-status-group">
+															<span className="party-roster-status party-roster-status-pending">
+																<CircleDot className="h-3.5 w-3.5" />
+																Pending
 															</span>
+															<PendingVerificationBadge
+																accountId={member.playerAccountId}
+															/>
 														</div>
 													</div>
-													<span className="party-roster-status party-roster-status-pending">
-														<CircleDot className="h-3.5 w-3.5" />
-														Pending
-													</span>
+													<div className="party-stats-empty">
+														Stats unlock after approval.
+													</div>
 												</div>
-												<div className="party-stats-empty">
-													Stats unlock after approval.
-												</div>
-											</div>
 											</div>
 										);
-										})}
+									})}
 								</div>
-								{acceptedMembers.length === 0 && pendingMembers.length === 0 && (
-									<p className="party-roster-empty text-muted-foreground">
-										No additional members yet. Share the link to start recruiting.
-									</p>
-								)}
+								{acceptedMembers.length === 0 &&
+									pendingMembers.length === 0 && (
+										<p className="party-roster-empty text-muted-foreground">
+											No additional members yet. Share the link to start
+											recruiting.
+										</p>
+									)}
 							</CardContent>
 						</Card>
 					</div>
@@ -877,8 +864,7 @@ function PartyDetailRoute() {
 													const rejectKey = `${baseKey}:reject`;
 													const isMemberReviewing =
 														reviewingKey?.startsWith(`${baseKey}:`) ?? false;
-													const isApproveLoading =
-														reviewingKey === approveKey;
+													const isApproveLoading = reviewingKey === approveKey;
 													const isRejectLoading = reviewingKey === rejectKey;
 													const disableApprove =
 														isMemberReviewing ||
@@ -900,10 +886,15 @@ function PartyDetailRoute() {
 																	Awaiting leader decision
 																</span>
 															</div>
-															<span className="party-roster-status party-roster-status-pending">
-																<CircleDot className="h-3.5 w-3.5" />
-																Pending
-															</span>
+															<div className="party-approval-status-group">
+																<span className="party-roster-status party-roster-status-pending">
+																	<CircleDot className="h-3.5 w-3.5" />
+																	Pending
+																</span>
+																<PendingVerificationBadge
+																	accountId={member.playerAccountId}
+																/>
+															</div>
 															<div className="party-approval-actions">
 																<Button
 																	size="sm"
@@ -955,8 +946,8 @@ function PartyDetailRoute() {
 								<CardHeader>
 									<CardTitle>Request to join</CardTitle>
 									<CardDescription>
-										Choose an account to request to join. Verified accounts
-										are reviewed first.
+										Choose an account to request to join. Verified accounts are
+										reviewed first.
 									</CardDescription>
 								</CardHeader>
 								<CardContent className="party-join-body">
@@ -979,9 +970,8 @@ function PartyDetailRoute() {
 									) : (
 										<div className="party-account-list">
 											{accountList.map((account) => {
-												const status =
-													(account.verificationStatus ??
-														"unverified") as keyof typeof statusLabels;
+												const status = (account.verificationStatus ??
+													"unverified") as keyof typeof statusLabels;
 												const isSelected = account._id === selectedAccountId;
 												const isActive =
 													appUser?.activePlayerAccountId === account._id;
@@ -993,26 +983,13 @@ function PartyDetailRoute() {
 															"party-account-option",
 															isSelected && "is-selected",
 														)}
-														onClick={() =>
-															setSelectedAccountId(account._id)
-														}
+														onClick={() => setSelectedAccountId(account._id)}
 													>
 														<div className="party-account-info">
 															<span className="party-account-name">
 																{account.username}
 															</span>
-															<span
-																className={`account-status account-status-${status}`}
-															>
-																{status === "verified" ? (
-																	<BadgeCheck className="h-3.5 w-3.5" />
-																) : status === "pending" ? (
-																	<ShieldAlert className="h-3.5 w-3.5" />
-																) : (
-																	<ShieldQuestion className="h-3.5 w-3.5" />
-																)}
-																{statusLabels[status]}
-															</span>
+															<VerificationBadge status={status} />
 														</div>
 														{isActive && (
 															<span className="party-account-active">
@@ -1071,6 +1048,42 @@ function PartyDetailRoute() {
 			</div>
 		</div>
 	);
+}
+
+type VerificationStatus = keyof typeof statusLabels;
+
+function VerificationBadge({ status }: { status: VerificationStatus }) {
+	const Icon =
+		status === "verified"
+			? BadgeCheck
+			: status === "pending"
+				? ShieldAlert
+				: ShieldQuestion;
+
+	return (
+		<span className={`account-status account-status-${status}`}>
+			<Icon className="h-3.5 w-3.5" />
+			{statusLabels[status]}
+		</span>
+	);
+}
+
+function PendingVerificationBadge({
+	accountId,
+}: {
+	accountId?: Id<"playerAccounts">;
+}) {
+	const profile = useQuery(
+		api.playerAccounts.getMemberProfile,
+		accountId ? { accountId } : "skip",
+	);
+
+	if (!accountId) return null;
+	if (profile === undefined) return null;
+
+	const status = (profile.verificationStatus ??
+		"unverified") as VerificationStatus;
+	return <VerificationBadge status={status} />;
 }
 
 type RosterMemberCardProps = {
