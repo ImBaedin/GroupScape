@@ -110,8 +110,8 @@
 - Future-self note:
   - Introduce lazy route components for heavy routes.
 
-### 10. [High] `party-tracker` route is production-exposed test harness with expensive rendering
-- Where: `apps/web/src/routes/party-tracker.tsx:17-19`, `apps/web/src/components/header.tsx:9-12`
+### 10. [High] `party-tracker` route is production-exposed test harness with expensive rendering [Completed]
+- Where: `apps/web/src/routes/party-tracker.tsx:17-23`, `apps/web/src/components/header.tsx:9-13`
 - Why this is a problem:
   - Debug/test UI is linked in primary nav.
   - High-frequency updates render large cards with many item images and no memoization/virtualization.
@@ -207,8 +207,8 @@
 - Future-self note:
   - Move to single source-of-truth route param or explicit draft state model.
 
-### 20. [Medium] Auth redirect done in render effect rather than route guard
-- Where: `apps/web/src/routes/index.tsx:43-46`
+### 20. [Medium] Auth redirect done in render effect rather than route guard [Completed]
+- Where: `apps/web/src/routes/index.tsx:23-29`
 - Why this is a problem:
   - Navigation control flow is hidden inside component effect and can flash empty UI.
 - Relevant skill:

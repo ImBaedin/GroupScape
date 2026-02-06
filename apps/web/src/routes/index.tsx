@@ -1,7 +1,12 @@
 import { api } from "@GroupScape/backend/convex/_generated/api";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import {
+	createFileRoute,
+	Link,
+	redirect,
+	useNavigate,
+} from "@tanstack/react-router";
 import { useConvexAuth, useQuery } from "convex/react";
-import { type FormEvent, useEffect, useMemo } from "react";
+import { type FormEvent, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -13,8 +18,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useDebouncedSearchField } from "@/hooks/use-debounced-search-field";
+import { authClient } from "@/lib/auth-client";
 
 export const Route = createFileRoute("/")({
+	beforeLoad: async () => {
+		const session = await authClient.getSession();
+		if (session.data) {
+			throw redirect({ to: "/parties", search: { search: "" } });
+		}
+	},
 	component: HomeComponent,
 });
 
@@ -48,11 +60,6 @@ function HomeComponent() {
 		(waitingForDebounce ||
 			(debouncedTrimmedQuery.length > 1 && searchResults === undefined));
 	const searchList = searchResults ?? [];
-
-	useEffect(() => {
-		if (!isAuthenticated) return;
-		void navigate({ to: "/parties", search: { search: "" } });
-	}, [isAuthenticated, navigate]);
 
 	if (isAuthenticated) {
 		return null;
@@ -101,7 +108,11 @@ function HomeComponent() {
 						<Link className="guild-button guild-button-ghost" to="/auth">
 							Sign In
 						</Link>
-						<Link className="guild-button" to="/auth" search={{ mode: "sign-up" }}>
+						<Link
+							className="guild-button"
+							to="/auth"
+							search={{ mode: "sign-up" }}
+						>
 							Sign Up
 						</Link>
 					</div>
@@ -150,7 +161,9 @@ function HomeComponent() {
 										className="guild-input"
 										placeholder="Search by boss, region, or party name"
 										value={searchField.value}
-										onChange={(event) => searchField.setValue(event.target.value)}
+										onChange={(event) =>
+											searchField.setValue(event.target.value)
+										}
 									/>
 									<Button
 										type="submit"
@@ -322,7 +335,11 @@ function HomeComponent() {
 						>
 							Start a Party
 						</Button>
-						<Link className="guild-button" to="/parties" search={{ search: "" }}>
+						<Link
+							className="guild-button"
+							to="/parties"
+							search={{ search: "" }}
+						>
 							Explore Parties
 						</Link>
 					</div>

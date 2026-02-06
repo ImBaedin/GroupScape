@@ -4,4 +4,3 @@
 - Avoid running `convex codegen` here; it repeatedly fails due to blocked network/Sentry and wastes time. Instead, the user is responsible for running the dev server.
 
 ## Discoveries
-

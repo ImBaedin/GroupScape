@@ -2,7 +2,7 @@ import {
 	type MemberState,
 	PartyTracker,
 } from "@GroupScape/runelite-party-client";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +15,11 @@ import {
 import { Input } from "@/components/ui/input";
 
 export const Route = createFileRoute("/party-tracker")({
+	beforeLoad: () => {
+		if (!import.meta.env.DEV) {
+			throw redirect({ to: "/parties", search: { search: "" } });
+		}
+	},
 	component: PartyTrackerTest,
 });
 

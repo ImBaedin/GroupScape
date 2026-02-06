@@ -6,10 +6,11 @@ import ProfileBadge from "@/components/profile-badge";
 import { ModeToggle } from "./mode-toggle";
 
 export default function Header() {
-	const links = [
-		{ to: "/parties", label: "Parties" },
-		{ to: "/party-tracker", label: "Party Tracker" },
-	] as const;
+	const links = [{ to: "/parties", label: "Parties" }] as const;
+	const debugLinks = import.meta.env.DEV
+		? ([{ to: "/party-tracker", label: "Party Tracker" }] as const)
+		: [];
+	const navLinks = [...links, ...debugLinks];
 	const { isAuthenticated } = useConvexAuth();
 	const activeParty = useQuery(
 		api.parties.getActiveForUser,
@@ -32,7 +33,7 @@ export default function Header() {
 					</div>
 				</Link>
 				<nav className="app-nav">
-					{links.map(({ to, label }) => {
+					{navLinks.map(({ to, label }) => {
 						return (
 							<Link key={to} to={to} className="app-nav-link">
 								{label}
@@ -49,9 +50,7 @@ export default function Header() {
 						>
 							<Users className="h-4 w-4" />
 							<span className="app-active-party-label">Active</span>
-							<span className="app-active-party-name">
-								{activeParty.name}
-							</span>
+							<span className="app-active-party-name">{activeParty.name}</span>
 						</Link>
 					) : null}
 					<ProfileBadge />
