@@ -1,7 +1,7 @@
 import { api } from "@GroupScape/backend/convex/_generated/api";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useConvexAuth, useQuery } from "convex/react";
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { useDebouncedSearchField } from "@/hooks/use-debounced-search-field";
 
 export const Route = createFileRoute("/")({
 	component: HomeComponent,
@@ -20,8 +21,7 @@ export const Route = createFileRoute("/")({
 function HomeComponent() {
 	const { isAuthenticated } = useConvexAuth();
 	const navigate = useNavigate();
-	const [searchQuery, setSearchQuery] = useState("");
-	const [debouncedQuery, setDebouncedQuery] = useState("");
+	const searchField = useDebouncedSearchField({ delayMs: 250 });
 	const metrics = useQuery(api.parties.getHomeMetrics, {});
 	const numberFormatter = useMemo(() => new Intl.NumberFormat(), []);
 	const dateFormatter = useMemo(
@@ -31,17 +31,8 @@ function HomeComponent() {
 			}),
 		[],
 	);
-	const trimmedQuery = searchQuery.trim();
-	const debouncedTrimmedQuery = debouncedQuery.trim();
-
-	useEffect(() => {
-		const timeoutId = window.setTimeout(() => {
-			setDebouncedQuery(searchQuery);
-		}, 250);
-		return () => {
-			window.clearTimeout(timeoutId);
-		};
-	}, [searchQuery]);
+	const trimmedQuery = searchField.value.trim();
+	const debouncedTrimmedQuery = searchField.debouncedValue.trim();
 
 	const searchResults = useQuery(
 		api.parties.searchActive,
@@ -51,8 +42,7 @@ function HomeComponent() {
 	);
 	const metricsReady = metrics !== undefined;
 	const searchReady = trimmedQuery.length > 1;
-	const waitingForDebounce =
-		searchReady && trimmedQuery !== debouncedTrimmedQuery;
+	const waitingForDebounce = searchReady && searchField.isDebouncing;
 	const isSearching =
 		searchReady &&
 		(waitingForDebounce ||
@@ -159,8 +149,8 @@ function HomeComponent() {
 									<Input
 										className="guild-input"
 										placeholder="Search by boss, region, or party name"
-										value={searchQuery}
-										onChange={(event) => setSearchQuery(event.target.value)}
+										value={searchField.value}
+										onChange={(event) => searchField.setValue(event.target.value)}
 									/>
 									<Button
 										type="submit"

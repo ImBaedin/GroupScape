@@ -3,8 +3,9 @@ import type { Id } from "@GroupScape/backend/convex/_generated/dataModel";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useConvexAuth, useQuery } from "convex/react";
 import { Crown, Flag, Loader2, Sparkles, Timer, Users } from "lucide-react";
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useRef } from "react";
 import CreatePartyForm from "@/components/create-party-form";
+import { useDebouncedSearchField } from "@/hooks/use-debounced-search-field";
 import { buttonVariants } from "@/components/ui/button";
 import {
 	Card,
@@ -27,7 +28,16 @@ function PartiesRoute() {
 	const navigate = useNavigate();
 	const { isAuthenticated, isLoading } = useConvexAuth();
 	const { search } = Route.useSearch();
-	const [searchValue, setSearchValue] = useState(search);
+	const {
+		value: searchValue,
+		setValue: setSearchValue,
+		debouncedValue,
+		setImmediateValue,
+	} = useDebouncedSearchField({
+		initialValue: search,
+		delayMs: 250,
+	});
+	const lastCommittedSearchRef = useRef(search);
 	const shouldFetchAuthedData = isAuthenticated && !isLoading;
 	const appUser = useQuery(
 		api.users.getCurrent,
@@ -51,8 +61,30 @@ function PartiesRoute() {
 	const displayedParties = isSearchMode ? searchResults ?? [] : partyList;
 
 	useEffect(() => {
-		setSearchValue(search);
-	}, [search]);
+		if (search === lastCommittedSearchRef.current) return;
+		lastCommittedSearchRef.current = search;
+		setImmediateValue(search);
+	}, [search, setImmediateValue]);
+
+	const commitSearch = useCallback(
+		(nextValue: string, replace: boolean) => {
+			const trimmed = nextValue.trim();
+			if (trimmed === lastCommittedSearchRef.current) return;
+			lastCommittedSearchRef.current = trimmed;
+			void navigate({
+				to: "/parties",
+				search: { search: trimmed },
+				replace,
+			});
+		},
+		[navigate],
+	);
+
+	useEffect(() => {
+		const trimmedDraft = debouncedValue.trim();
+		if (trimmedDraft === lastCommittedSearchRef.current) return;
+		commitSearch(trimmedDraft, true);
+	}, [debouncedValue, commitSearch]);
 
 	const numberFormatter = useMemo(() => new Intl.NumberFormat(), []);
 	const dateFormatter = useMemo(
@@ -105,11 +137,7 @@ function PartiesRoute() {
 
 	const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
-		const trimmed = searchValue.trim();
-		navigate({
-			to: "/parties",
-			search: { search: trimmed },
-		});
+		commitSearch(searchValue, false);
 	};
 
 	return (
@@ -217,6 +245,7 @@ function PartiesRoute() {
 						</div>
 						<form className="party-search" onSubmit={handleSearchSubmit}>
 							<Input
+								name="search"
 								className="party-search-input"
 								placeholder="Search parties by name or description"
 								value={searchValue}

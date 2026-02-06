@@ -198,7 +198,7 @@
 - Future-self note:
   - Split into `LeaderPanel` and `JoinPanel` with a small coordinator wrapper.
 
-### 19. [Medium] Derived URL state mirrored through effect
+### 19. [Medium] Derived URL state mirrored through effect [Completed]
 - Where: `apps/web/src/routes/parties.tsx:30`, `apps/web/src/routes/parties.tsx:53-55`
 - Why this is a problem:
   - `searchValue` sync effect duplicates route state and can clobber local edits.
