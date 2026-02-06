@@ -97,6 +97,15 @@ export const insertPartyMembership = async (
 		playerAccountId?: Id<"playerAccounts">;
 	},
 ) => {
+	const existing = await ctx.db
+		.query("partyMemberships")
+		.withIndex("by_userId_partyId", (q) =>
+			q.eq("userId", args.userId).eq("partyId", args.partyId),
+		)
+		.unique();
+	if (existing) {
+		return;
+	}
 	await ctx.db.insert("partyMemberships", {
 		userId: args.userId,
 		partyId: args.partyId,

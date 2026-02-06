@@ -85,7 +85,10 @@ export const start = action({
 			throw new ConvexError("Account already verified");
 		}
 
-		if (account.verificationStatus === "pending" && account.verificationChallenge) {
+		if (
+			account.verificationStatus === "pending" &&
+			account.verificationChallenge
+		) {
 			const ageMs = Date.now() - account.verificationChallenge.issuedAt;
 			if (ageMs < VERIFICATION_WINDOW_MS) {
 				const instructions =
@@ -94,8 +97,7 @@ export const start = action({
 						account.verificationChallenge.expectedXp,
 						account.verificationChallenge.resourceId,
 						account.verificationChallenge.amount,
-					) ??
-					"Repeat the verification action you were given earlier.";
+					) ?? "Repeat the verification action you were given earlier.";
 
 				return {
 					instructions,

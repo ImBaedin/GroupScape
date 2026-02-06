@@ -6,6 +6,7 @@ import {
 	mutation,
 	query,
 } from "./_generated/server";
+import type { QueryCtx } from "./_generated/server";
 import { requireUser, getOptionalUser } from "./lib/auth";
 import { getUserPartyLock, getUserPartyMemberships } from "./lib/partyMembership";
 import { STATS_STALE_MS, statsSummaryValidator } from "./statsSummary";
@@ -55,6 +56,28 @@ const memberProfileValidator = v.object({
 });
 
 const normalizeUsername = (username: string) => username.trim();
+
+const buildMemberProfile = async (
+	ctx: QueryCtx,
+	account: Doc<"playerAccounts">,
+) => {
+	const stats = account.stats ? await ctx.db.get(account.stats) : null;
+	const lastUpdated = stats?.lastUpdated;
+	const isStale = !lastUpdated || Date.now() - lastUpdated > STATS_STALE_MS;
+	const headshotUrl = account.accountImageStorageId
+		? await ctx.storage.getUrl(account.accountImageStorageId)
+		: undefined;
+
+	return {
+		accountId: account._id,
+		username: account.username,
+		headshotUrl: headshotUrl ?? undefined,
+		verificationStatus: account.verificationStatus,
+		summary: stats?.summary,
+		lastUpdated,
+		isStale,
+	};
+};
 
 
 export const list = query({
@@ -118,22 +141,38 @@ export const getMemberProfile = query({
 			throw new ConvexError("Account not found");
 		}
 
-		const stats = account.stats ? await ctx.db.get(account.stats) : null;
-		const lastUpdated = stats?.lastUpdated;
-		const isStale = !lastUpdated || Date.now() - lastUpdated > STATS_STALE_MS;
-		const headshotUrl = account.accountImageStorageId
-			? await ctx.storage.getUrl(account.accountImageStorageId)
-			: undefined;
+		return await buildMemberProfile(ctx, account);
+	},
+});
 
-		return {
-			accountId: account._id,
-			username: account.username,
-			headshotUrl: headshotUrl ?? undefined,
-			verificationStatus: account.verificationStatus,
-			summary: stats?.summary,
-			lastUpdated,
-			isStale,
-		};
+export const getMemberProfiles = query({
+	args: {
+		accountIds: v.array(v.id("playerAccounts")),
+	},
+	returns: v.array(memberProfileValidator),
+	handler: async (ctx, args) => {
+		await requireUser(ctx);
+		if (args.accountIds.length === 0) {
+			return [];
+		}
+
+		const uniqueAccountIds = Array.from(new Set(args.accountIds));
+		const profiles = await Promise.all(
+			uniqueAccountIds.map(async (accountId) => {
+				const account = await ctx.db.get(accountId);
+				if (!account) {
+					return null;
+				}
+				return await buildMemberProfile(ctx, account);
+			}),
+		);
+
+		return profiles.filter(
+			(
+				profile,
+			): profile is Awaited<ReturnType<typeof buildMemberProfile>> =>
+				profile !== null,
+		);
 	},
 });
 

@@ -544,12 +544,15 @@ export const reviewRequest = mutation({
 				excludePartyId: args.partyId,
 			});
 			if (partyLock) {
-				throw new ConvexError(
-					buildLockedPartyMessage(
-						partyLock.partyName,
-						partyLock.membershipStatus,
-					),
-				);
+				const leaderMessage =
+					partyLock.membershipStatus === "pending"
+						? `This user has a pending request in another party ("${partyLock.partyName}").`
+						: `This user has already joined another party ("${partyLock.partyName}").`;
+				throw new ConvexError({
+					message: leaderMessage,
+					partyName: partyLock.partyName,
+					membershipStatus: partyLock.membershipStatus,
+				});
 			}
 
 			const acceptedCount =

@@ -175,7 +175,7 @@ Important repo-specific note from `AGENTS.md`:
 ## Known Risks / Improvement Opportunities
 
 - `parties.requestJoin` currently allows unverified account requests (UI deprioritizes but backend does not enforce strict verified-only gate).
-- Verification window is currently 5 minutes in code (`verification.ts`), while planning notes previously referenced 15 minutes.
+- Verification window is 5 minutes (see `verification.ts`: `VERIFICATION_WINDOW_MS`).
 - Metrics integrity depends on mutation-time deltas; periodic reconciliation/backfill should remain available.
 - `packages/osrs-content` appears partially legacy and may need cleanup or clear ownership.
 
