@@ -171,7 +171,7 @@
 - Future-self note:
   - Batch headshot URLs with account list payload.
 
-### 16. [Medium] N+1 headshot subscriptions in profile dropdown menu
+### 16. [Medium] N+1 headshot subscriptions in profile dropdown menu [Completed]
 - Where: `apps/web/src/components/profile-badge.tsx:43-45`, `apps/web/src/components/profile-badge.tsx:179-187`
 - Why this is a problem:
   - Same fan-out issue as profile route; extra cost when menu mounts.

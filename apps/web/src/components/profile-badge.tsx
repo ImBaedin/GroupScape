@@ -2,6 +2,7 @@ import { api } from "@GroupScape/backend/convex/_generated/api";
 import type { Id } from "@GroupScape/backend/convex/_generated/dataModel";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useConvexAuth, useQuery } from "convex/react";
+import { useMemo } from "react";
 import { Check, ShieldCheck, User, UserPlus } from "lucide-react";
 import {
 	DropdownMenu,
@@ -26,6 +27,7 @@ function getInitials(name?: string | null) {
 
 function AccountRow({
 	account,
+	headshotUrl,
 	isActive,
 	onSelect,
 	disabled,
@@ -35,13 +37,11 @@ function AccountRow({
 		username: string;
 		verificationStatus?: "unverified" | "pending" | "verified";
 	};
+	headshotUrl?: string | null;
 	isActive: boolean;
 	onSelect: (accountId: Id<"playerAccounts">) => void;
 	disabled: boolean;
 }) {
-	const headshotUrl = useQuery(api.playerAccounts.getHeadshotUrl, {
-		accountId: account._id,
-	});
 	const initials = getInitials(account.username);
 	const isVerified = account.verificationStatus === "verified";
 
@@ -77,21 +77,34 @@ export default function ProfileBadge() {
 	const user = useQuery(api.auth.getCurrentUser);
 	const appUser = useQuery(
 		api.users.getCurrent,
-		isAuthenticated ? {} : undefined,
+		isAuthenticated ? {} : "skip",
 	);
 	const accounts = useQuery(
 		api.playerAccounts.list,
-		isAuthenticated ? {} : undefined,
+		isAuthenticated ? {} : "skip",
 	);
 	const partyLock = useQuery(
 		api.parties.getActiveForUser,
 		isAuthenticated ? {} : "skip",
 	);
-	const headshotUrl = useQuery(
-		api.playerAccounts.getHeadshotUrl,
-		isAuthenticated && appUser?.activePlayerAccountId
-			? { accountId: appUser.activePlayerAccountId }
-			: "skip",
+	const accountList = accounts ?? [];
+	const accountIds = useMemo(
+		() => accountList.map((account) => account._id),
+		[accountList],
+	);
+	const memberProfiles = useQuery(
+		api.playerAccounts.getMemberProfiles,
+		isAuthenticated && accountIds.length > 0 ? { accountIds } : "skip",
+	);
+	const headshotByAccountId = useMemo(
+		() =>
+			new Map(
+				(memberProfiles ?? []).map((profile) => [
+					profile.accountId,
+					profile.headshotUrl ?? null,
+				]),
+			),
+		[memberProfiles],
 	);
 
 	const navigate = useNavigate();
@@ -121,7 +134,6 @@ export default function ProfileBadge() {
 
 	const name = user?.name ?? "Adventurer";
 	const initials = getInitials(user?.name);
-	const accountList = accounts ?? [];
 	const lockMessage = partyLock
 		? partyLock.membershipStatus === "pending"
 			? `Pending party request in ${partyLock.name}`
@@ -130,7 +142,10 @@ export default function ProfileBadge() {
 	const activeAccountName =
 		accountList.find((account) => account._id === activeAccountId)?.username ??
 		"Select account";
-	const profileImage = headshotUrl ?? user?.image ?? null;
+	const activeHeadshotUrl = activeAccountId
+		? headshotByAccountId.get(activeAccountId) ?? null
+		: null;
+	const profileImage = activeHeadshotUrl ?? user?.image ?? null;
 
 	return (
 		<DropdownMenu>
@@ -139,7 +154,7 @@ export default function ProfileBadge() {
 					{profileImage ? (
 						<img
 							src={profileImage}
-							alt={headshotUrl ? `${activeAccountName} headshot` : name}
+							alt={activeHeadshotUrl ? `${activeAccountName} headshot` : name}
 						/>
 					) : (
 						<span>{initials}</span>
@@ -160,6 +175,7 @@ export default function ProfileBadge() {
 							<AccountRow
 								key={account._id}
 								account={account}
+								headshotUrl={headshotByAccountId.get(account._id)}
 								isActive={activeAccountId === account._id}
 								onSelect={handleSetActiveAccount}
 								disabled={activeUpdatingId !== null || isPartyLocked}
