@@ -225,7 +225,7 @@
 - Future-self note:
   - Add debounced input value and minimum interval.
 
-### 22. [Medium] SPA navigation bypassed with raw anchors in key flows
+### 22. [Medium] SPA navigation bypassed with raw anchors in key flows [Completed]
 - Where: `apps/web/src/routes/index.tsx:92-97`, `apps/web/src/routes/index.tsx:113-121`
 - Why this is a problem:
   - Full document navigations lose in-app state and can hurt perceived performance.

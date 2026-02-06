@@ -89,12 +89,12 @@ function HomeComponent() {
 						</div>
 					</div>
 					<div className="flex flex-wrap items-center gap-3">
-						<a className="guild-button guild-button-ghost" href="/auth">
+						<Link className="guild-button guild-button-ghost" to="/auth">
 							Sign In
-						</a>
-						<a className="guild-button" href="/auth?mode=sign-up">
+						</Link>
+						<Link className="guild-button" to="/auth" search={{ mode: "sign-up" }}>
 							Sign Up
-						</a>
+						</Link>
 					</div>
 				</header>
 
@@ -113,12 +113,13 @@ function HomeComponent() {
 							<a className="guild-button guild-button-primary" href="#">
 								Download RuneLite Plugin
 							</a>
-							<a
+							<Link
 								className="guild-button guild-button-secondary"
-								href="/parties"
+								to="/parties"
+								search={{ search: "" }}
 							>
 								Create a Party
-							</a>
+							</Link>
 						</div>
 
 						<Card className="guild-search">
@@ -312,9 +313,9 @@ function HomeComponent() {
 						>
 							Start a Party
 						</Button>
-						<a className="guild-button" href="/parties">
+						<Link className="guild-button" to="/parties" search={{ search: "" }}>
 							Explore Parties
-						</a>
+						</Link>
 					</div>
 				</section>
 			</div>
