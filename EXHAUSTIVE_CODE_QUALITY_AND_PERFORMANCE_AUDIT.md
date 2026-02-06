@@ -259,8 +259,8 @@
 - Future-self note:
   - Add abort/request-id guards, cleanup disposal, and lazy-enable capture buffer only when needed.
 
-### 25. [Medium] Query gating is inconsistent (`"skip"` vs `undefined`)
-- Where: `apps/web/src/routes/profile.tsx:162-173`, `apps/web/src/components/profile-badge.tsx:79-90`
+### 25. [Medium] Query gating is inconsistent (`"skip"` vs `undefined`) [Completed]
+- Where: `apps/web/src/features/profile/hooks/useProfileQueries.ts:11-16`, `apps/web/src/components/profile-badge.tsx:78-85`
 - Why this is a problem:
   - Inconsistent patterns increase accidental query execution risk and cognitive load.
 - Relevant skill:

@@ -12,7 +12,7 @@ export function useProfileQueries() {
 	);
 	const accounts = useQuery(
 		api.playerAccounts.list,
-		isAuthenticated ? {} : undefined,
+		isAuthenticated ? {} : "skip",
 	);
 	const accountStats = useQuery(
 		api.playerAccountStats.listForUser,
