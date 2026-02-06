@@ -121,7 +121,7 @@
 - Future-self note:
   - Hide behind dev flag or split into admin/debug build surface.
 
-### 11. [High] Context provider value is recreated every render (fan-out re-renders)
+### 11. [High] Context provider value is recreated every render (fan-out re-renders) [Completed]
 - Where: `apps/web/src/features/party-detail/components/PartyDetailPage.tsx:163-172`
 - Why this is a problem:
   - New object identity on each render causes all context consumers to re-render.

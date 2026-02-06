@@ -1,6 +1,7 @@
 import type { Id } from "@GroupScape/backend/convex/_generated/dataModel";
 import { Link } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
+import { useMemo } from "react";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -158,19 +159,29 @@ function PartyDetailLoadedContent({
 		appUserId: appUser?._id,
 		partyOwnerId: party.ownerId,
 	});
+	const providerValue = useMemo(
+		() => ({
+			party,
+			appUser,
+			partyLock,
+			accountList,
+			derived,
+			formatting,
+			isAuthenticated,
+		}),
+		[
+			party,
+			appUser,
+			partyLock,
+			accountList,
+			derived,
+			formatting,
+			isAuthenticated,
+		],
+	);
 
 	return (
-		<PartyDetailProvider
-			value={{
-				party,
-				appUser,
-				partyLock,
-				accountList,
-				derived,
-				formatting,
-				isAuthenticated,
-			}}
-		>
+		<PartyDetailProvider value={providerValue}>
 			<div className="party-detail min-h-[calc(100svh-4rem)] px-4 pt-10 pb-20 sm:px-8">
 				<div className="party-detail-shell mx-auto max-w-6xl">
 					<PartyDetailHeader />

@@ -64,10 +64,13 @@ export function usePartyFormatting({
 		return `${parts[0]?.[0] ?? ""}${parts[1]?.[0] ?? ""}`.toUpperCase();
 	}, []);
 
-	return {
-		numberFormatter,
-		dateFormatter,
-		formatMemberName,
-		getAccountInitials,
-	};
+	return useMemo(
+		() => ({
+			numberFormatter,
+			dateFormatter,
+			formatMemberName,
+			getAccountInitials,
+		}),
+		[numberFormatter, dateFormatter, formatMemberName, getAccountInitials],
+	);
 }
