@@ -1,10 +1,8 @@
 import { api } from "@GroupScape/backend/convex/_generated/api";
 import type { Id } from "@GroupScape/backend/convex/_generated/dataModel";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { Check, ShieldCheck, User, UserPlus } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -14,6 +12,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useActiveAccountSwitcher } from "@/hooks/use-active-account-switcher";
 import { authClient } from "@/lib/auth-client";
 
 function getInitials(name?: string | null) {
@@ -94,14 +93,22 @@ export default function ProfileBadge() {
 			? { accountId: appUser.activePlayerAccountId }
 			: "skip",
 	);
-	const setActiveAccount = useMutation(api.users.setActiveAccount);
+
 	const navigate = useNavigate();
-	const [activeUpdatingId, setActiveUpdatingId] = useState<
-		Id<"playerAccounts"> | null
-	>(null);
+	const activeAccountId = appUser?.activePlayerAccountId ?? null;
+	const isPartyLockLoading = isAuthenticated && partyLock === undefined;
+	const isPartyLocked = isPartyLockLoading || Boolean(partyLock);
+	const { activeUpdatingId, handleSetActiveAccount } = useActiveAccountSwitcher(
+		{
+			activeAccountId: activeAccountId ?? null,
+			isPartyLocked,
+		},
+	);
 
 	if (isLoading) {
-		return <div className="profile-badge profile-badge-loading">Loading...</div>;
+		return (
+			<div className="profile-badge profile-badge-loading">Loading...</div>
+		);
 	}
 
 	if (!isAuthenticated) {
@@ -115,8 +122,6 @@ export default function ProfileBadge() {
 	const name = user?.name ?? "Adventurer";
 	const initials = getInitials(user?.name);
 	const accountList = accounts ?? [];
-	const activeAccountId = appUser?.activePlayerAccountId ?? null;
-	const isPartyLocked = Boolean(partyLock);
 	const lockMessage = partyLock
 		? partyLock.membershipStatus === "pending"
 			? `Pending party request in ${partyLock.name}`
@@ -127,27 +132,6 @@ export default function ProfileBadge() {
 		"Select account";
 	const profileImage = headshotUrl ?? user?.image ?? null;
 
-	const handleSetActiveAccount = async (accountId: Id<"playerAccounts">) => {
-		if (activeAccountId === accountId) return;
-		if (isPartyLocked) {
-			toast.error("Leave or resolve your current party before switching account.");
-			return;
-		}
-		setActiveUpdatingId(accountId);
-		try {
-			await setActiveAccount({ accountId });
-			toast.success("Active account updated");
-		} catch (error) {
-			const message =
-				error instanceof Error
-					? error.message
-					: "Unable to update active account";
-			toast.error(message);
-		} finally {
-			setActiveUpdatingId(null);
-		}
-	};
-
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger className="profile-badge" type="button">
@@ -155,11 +139,7 @@ export default function ProfileBadge() {
 					{profileImage ? (
 						<img
 							src={profileImage}
-							alt={
-								headshotUrl
-									? `${activeAccountName} headshot`
-									: name
-							}
+							alt={headshotUrl ? `${activeAccountName} headshot` : name}
 						/>
 					) : (
 						<span>{initials}</span>

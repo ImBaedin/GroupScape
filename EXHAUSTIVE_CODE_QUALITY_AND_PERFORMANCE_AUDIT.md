@@ -28,7 +28,7 @@
 - Future-self note:
   - Split into feature slices: data orchestrator hook + presentational sections (`AccountList`, `VerificationPanel`, `StatsPanel`, `HeadshotPanel`).
 
-### 2. [High] Excessive local state + hook density in one route
+### 2. [High] Excessive local state + hook density in one route [Completed]
 - Where: `apps/web/src/routes/profile.tsx:186-232`, `apps/web/src/routes/profile.tsx:246-328`
 - Why this is a problem:
   - Large clusters of `useState`, `useMemo`, `useEffect` increase cognitive load and create subtle interaction bugs.
@@ -39,7 +39,7 @@
 - Future-self note:
   - Centralize related UI state in reducer/context or split by concern-specific hooks.
 
-### 3. [High] Full-profile re-render every second during verification windows
+### 3. [High] Full-profile re-render every second during verification windows [Completed]
 - Where: `apps/web/src/routes/profile.tsx:263-298`
 - Why this is a problem:
   - `nowMs` ticks each second and invalidates the entire profile route render tree.
@@ -49,7 +49,7 @@
 - Future-self note:
   - Move ticking to a narrow timer component/hook scoped to countdown UI only.
 
-### 4. [High] Local mirror of server stats breaks reactive model
+### 4. [High] Local mirror of server stats breaks reactive model [Completed]
 - Where: `apps/web/src/routes/profile.tsx:206-232`, `apps/web/src/routes/profile.tsx:300-328`
 - Why this is a problem:
   - `accountStats` is manually fetched into local state via action/effect instead of reactive query subscription.
@@ -60,7 +60,7 @@
 - Future-self note:
   - Convert to query-driven stats source and remove mirror effect/state.
 
-### 5. [High] Refreshing one account triggers broader expensive fetches
+### 5. [High] Refreshing one account triggers broader expensive fetches [Completed]
 - Where: `apps/web/src/routes/profile.tsx:362-367`, `packages/backend/convex/playerAccountStatsActions.ts:88-125`
 - Why this is a problem:
   - UI refresh of one account calls backend refresh, then re-runs `listForUser`; backend iterates stale accounts and may refresh many sequentially.
@@ -90,7 +90,7 @@
 - Future-self note:
   - Extract shared `usePlyGeometry` hook + composed model variants.
 
-### 8. [High] Heavy 3D feature is statically imported into profile route
+### 8. [High] Heavy 3D feature is statically imported into profile route [Completed]
 - Where: `apps/web/src/routes/profile.tsx:22`, `apps/web/src/routes/profile.tsx:872-877`
 - Why this is a problem:
   - `HeadshotSelector` (three/drei/fiber stack) is bundled with profile route even if user never opens capture UI.
@@ -161,7 +161,7 @@
 - Future-self note:
   - Use controlled parallelism (batch + cap) and return incremental/partial results.
 
-### 15. [Medium] N+1 headshot subscriptions on profile account list
+### 15. [Medium] N+1 headshot subscriptions on profile account list [Completed]
 - Where: `apps/web/src/routes/profile.tsx:131-140`, `apps/web/src/routes/profile.tsx:778-781`
 - Why this is a problem:
   - One query subscription per row scales poorly and increases reactive churn.
@@ -180,7 +180,7 @@
 - Future-self note:
   - Reuse batched headshot map from parent query.
 
-### 17. [Medium] Duplicate account-switching business logic in multiple components
+### 17. [Medium] Duplicate account-switching business logic in multiple components [Completed]
 - Where: `apps/web/src/routes/profile.tsx:400-419`, `apps/web/src/components/profile-badge.tsx:130-149`
 - Why this is a problem:
   - Two implementations for lock-check + mutation + toast flow increase drift risk.
