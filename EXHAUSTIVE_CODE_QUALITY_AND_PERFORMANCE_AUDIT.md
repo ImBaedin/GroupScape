@@ -18,7 +18,7 @@
 
 ## Findings (High -> Medium)
 
-### 1. [High] `ProfileRoute` is a god component with mixed concerns
+### 1. [High] `ProfileRoute` is a god component with mixed concerns [Completed]
 - Where: `apps/web/src/routes/profile.tsx:159`
 - Why this is a problem:
   - One component owns auth gating, data fetching, verification workflows, stats orchestration, headshot capture, and 500+ lines of UI rendering.
