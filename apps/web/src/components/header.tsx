@@ -7,9 +7,7 @@ import { ModeToggle } from "./mode-toggle";
 
 export default function Header() {
 	const links = [
-		{ to: "/", label: "Home" },
 		{ to: "/parties", label: "Parties" },
-		{ to: "/profile", label: "Profile" },
 		{ to: "/party-tracker", label: "Party Tracker" },
 	] as const;
 	const { isAuthenticated } = useConvexAuth();

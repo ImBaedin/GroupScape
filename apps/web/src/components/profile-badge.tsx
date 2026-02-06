@@ -2,7 +2,7 @@ import { api } from "@GroupScape/backend/convex/_generated/api";
 import type { Id } from "@GroupScape/backend/convex/_generated/dataModel";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
-import { Check, ShieldCheck, UserPlus } from "lucide-react";
+import { Check, ShieldCheck, User, UserPlus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -175,6 +175,14 @@ export default function ProfileBadge() {
 				</DropdownMenuGroup>
 				<DropdownMenuSeparator />
 				<DropdownMenuGroup>
+					<DropdownMenuItem
+						onClick={() => {
+							navigate({ to: "/profile" });
+						}}
+					>
+						<User className="h-4 w-4" />
+						Profile
+					</DropdownMenuItem>
 					<DropdownMenuItem
 						onClick={() => {
 							navigate({ to: "/profile" });

@@ -1,7 +1,7 @@
 import { api } from "@GroupScape/backend/convex/_generated/api";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useConvexAuth, useQuery } from "convex/react";
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -40,6 +40,15 @@ function HomeComponent() {
 	const isSearching = searchReady && searchResults === undefined;
 	const searchList = searchResults ?? [];
 
+	useEffect(() => {
+		if (!isAuthenticated) return;
+		void navigate({ to: "/parties", search: { search: "" } });
+	}, [isAuthenticated, navigate]);
+
+	if (isAuthenticated) {
+		return null;
+	}
+
 	const activePartiesMetric = metricsReady
 		? numberFormatter.format(metrics.activeParties)
 		: "--";
@@ -65,7 +74,7 @@ function HomeComponent() {
 	return (
 		<div className="guild-landing min-h-[calc(100svh-4rem)] px-4 pt-10 pb-20 sm:px-8">
 			<div className="mx-auto max-w-6xl space-y-14">
-				<header className="guild-topbar" hidden={isAuthenticated}>
+				<header className="guild-topbar">
 					<div className="flex items-center gap-3">
 						<img
 							src="/square-logo.jpg"
