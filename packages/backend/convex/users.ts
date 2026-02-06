@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getOptionalUser, requireUser } from "./lib/auth";
+import { getUserPartyLock } from "./lib/partyMembership";
 
 const userValidator = v.object({
 	_id: v.id("users"),
@@ -70,47 +71,16 @@ export const setActiveAccount = mutation({
 			throw new ConvexError("Not authorized to select this account");
 		}
 
+		const partyLock = await getUserPartyLock(ctx, user._id);
+		if (partyLock) {
+			throw new ConvexError(
+				"Cannot switch active account while you are in a party.",
+			);
+		}
+
 		await ctx.db.patch(user._id, {
 			activePlayerAccountId: args.accountId,
 		});
-
-		const ownedParties = await ctx.db
-			.query("parties")
-			.withIndex("by_ownerId", (q) => q.eq("ownerId", user._id))
-			.collect();
-
-		for (const party of ownedParties) {
-			let changed = false;
-			const nextMembers = [...party.members];
-			const leaderIndex = nextMembers.findIndex(
-				(member) => member.role === "leader" && member.memberId === user._id,
-			);
-
-			if (leaderIndex === -1) {
-				nextMembers.unshift({
-					memberId: user._id,
-					playerAccountId: args.accountId,
-					status: "accepted" as const,
-					role: "leader" as const,
-				});
-				changed = true;
-			} else {
-				const leader = nextMembers[leaderIndex];
-				if (leader.playerAccountId !== args.accountId) {
-					nextMembers[leaderIndex] = {
-						...leader,
-						playerAccountId: args.accountId,
-					};
-					changed = true;
-				}
-			}
-
-			if (changed) {
-				await ctx.db.patch(party._id, {
-					members: nextMembers,
-				});
-			}
-		}
 
 		const updated = await ctx.db.get(user._id);
 		if (!updated) {

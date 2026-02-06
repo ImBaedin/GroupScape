@@ -15,6 +15,7 @@ export default function Header() {
 		api.parties.getActiveForUser,
 		isAuthenticated ? {} : "skip",
 	);
+	const showActiveParty = activeParty?.membershipStatus === "accepted";
 
 	return (
 		<header className="app-header">
@@ -40,7 +41,7 @@ export default function Header() {
 					})}
 				</nav>
 				<div className="app-actions">
-					{activeParty ? (
+					{showActiveParty && activeParty ? (
 						<Link
 							to="/party/$partyId"
 							params={{ partyId: activeParty._id }}

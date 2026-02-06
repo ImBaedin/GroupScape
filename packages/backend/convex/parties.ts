@@ -1,8 +1,20 @@
 import { ConvexError, v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
-import { internalMutation, mutation, query } from "./_generated/server";
+import {
+	internalMutation,
+	internalQuery,
+	mutation,
+	query,
+} from "./_generated/server";
 import { requireUser } from "./lib/auth";
+import {
+	deletePartyMembershipByUserAndParty,
+	deletePartyMembershipsByPartyId,
+	getUserPartyLock,
+	insertPartyMembership,
+	setPartyMembershipStatus,
+} from "./lib/partyMembership";
 
 const memberStatusValidator = v.union(
 	v.literal("pending"),
@@ -64,6 +76,14 @@ const getPartyAcceptedPlayerCount = (party: Doc<"parties">) => {
 	).length;
 	return acceptedMembers + (hasLeader ? 1 : 0);
 };
+
+const buildLockedPartyMessage = (
+	partyName: string,
+	membershipStatus: "accepted" | "pending",
+) =>
+	membershipStatus === "pending"
+		? `You already have a pending request in "${partyName}". Resolve it before joining another party.`
+		: `You are already in "${partyName}". Leave it before joining another party.`;
 
 const getPartyMetricsDoc = async (ctx: MutationCtx | QueryCtx) =>
 	ctx.db
@@ -210,6 +230,9 @@ const activePartyValidator = v.object({
 	_creationTime: v.number(),
 	name: v.string(),
 	status: v.optional(partyStatusValidator),
+	membershipRole: partyMemberRoleValidator,
+	membershipStatus: memberStatusValidator,
+	playerAccountId: v.optional(v.id("playerAccounts")),
 	createdAt: v.optional(v.number()),
 	updatedAt: v.optional(v.number()),
 });
@@ -219,36 +242,24 @@ export const getActiveForUser = query({
 	returns: v.union(activePartyValidator, v.null()),
 	handler: async (ctx) => {
 		const user = await requireUser(ctx);
-		const parties = await ctx.db.query("parties").collect();
-
-		const candidates = parties.filter(
-			(party) =>
-				party.ownerId === user._id ||
-				party.members.some(
-					(member) =>
-						member.memberId === user._id && member.status === "accepted",
-				),
-		);
-
-		if (candidates.length === 0) {
+		const lock = await getUserPartyLock(ctx, user._id);
+		if (!lock) {
 			return null;
 		}
 
-		const sortValue = (party: Doc<"parties">) =>
-			party.updatedAt ?? party.createdAt ?? party._creationTime;
-
-		const openCandidates = candidates.filter(
-			(party) => party.status !== "closed",
-		);
-		const pool = openCandidates.length > 0 ? openCandidates : candidates;
-
-		const active = [...pool].sort((a, b) => sortValue(b) - sortValue(a))[0];
+		const active = await ctx.db.get(lock.partyId);
+		if (!active) {
+			return null;
+		}
 
 		return {
 			_id: active._id,
 			_creationTime: active._creationTime,
 			name: active.name,
 			status: active.status,
+			membershipRole: lock.role,
+			membershipStatus: lock.membershipStatus,
+			playerAccountId: lock.playerAccountId,
 			createdAt: active.createdAt,
 			updatedAt: active.updatedAt,
 		};
@@ -347,6 +358,15 @@ export const create = mutation({
 	returns: v.id("parties"),
 	handler: async (ctx, args) => {
 		const user = await requireUser(ctx);
+		const partyLock = await getUserPartyLock(ctx, user._id);
+		if (partyLock) {
+			throw new ConvexError(
+				buildLockedPartyMessage(
+					partyLock.partyName,
+					partyLock.membershipStatus,
+				),
+			);
+		}
 
 		const now = Date.now();
 		const searchText = buildPartySearchText(args.name, args.description);
@@ -368,6 +388,14 @@ export const create = mutation({
 			status: "open",
 			createdAt: now,
 			updatedAt: now,
+		});
+
+		await insertPartyMembership(ctx, {
+			userId: user._id,
+			partyId,
+			role: "leader",
+			status: "accepted",
+			playerAccountId: user.activePlayerAccountId ?? undefined,
 		});
 
 		await applyPartyMetricsDelta(ctx, {
@@ -424,6 +452,18 @@ export const requestJoin = mutation({
 			throw new ConvexError("Already requested to join");
 		}
 
+		const partyLock = await getUserPartyLock(ctx, user._id, {
+			excludePartyId: args.partyId,
+		});
+		if (partyLock) {
+			throw new ConvexError(
+				buildLockedPartyMessage(
+					partyLock.partyName,
+					partyLock.membershipStatus,
+				),
+			);
+		}
+
 		const now = Date.now();
 		const nextMembers = [
 			...party.members,
@@ -438,6 +478,14 @@ export const requestJoin = mutation({
 		await ctx.db.patch(args.partyId, {
 			members: nextMembers,
 			updatedAt: now,
+		});
+
+		await insertPartyMembership(ctx, {
+			userId: user._id,
+			partyId: args.partyId,
+			role: "member",
+			status: "pending",
+			playerAccountId: args.playerAccountId,
 		});
 
 		const updated = await ctx.db.get(args.partyId);
@@ -492,6 +540,18 @@ export const reviewRequest = mutation({
 				throw new ConvexError("Party is closed");
 			}
 
+			const partyLock = await getUserPartyLock(ctx, args.memberId, {
+				excludePartyId: args.partyId,
+			});
+			if (partyLock) {
+				throw new ConvexError(
+					buildLockedPartyMessage(
+						partyLock.partyName,
+						partyLock.membershipStatus,
+					),
+				);
+			}
+
 			const acceptedCount =
 				party.members.filter(
 					(entry) => entry.role !== "leader" && entry.status === "accepted",
@@ -517,10 +577,22 @@ export const reviewRequest = mutation({
 		});
 
 		if (args.approve) {
+			await setPartyMembershipStatus(
+				ctx,
+				args.memberId,
+				args.partyId,
+				"accepted",
+			);
 			await applyPartyMetricsDelta(ctx, {
 				totalPlayers: 1,
 				activePlayers: isActive ? 1 : 0,
 			});
+		} else {
+			await deletePartyMembershipByUserAndParty(
+				ctx,
+				args.memberId,
+				args.partyId,
+			);
 		}
 
 		const updated = await ctx.db.get(args.partyId);
@@ -642,6 +714,7 @@ export const remove = mutation({
 		const playerCount = getPartyAcceptedPlayerCount(party);
 		const isActive = isPartyActive(party.status);
 
+		await deletePartyMembershipsByPartyId(ctx, args.partyId);
 		await ctx.db.delete(args.partyId);
 
 		await applyPartyMetricsDelta(ctx, {
@@ -688,6 +761,8 @@ export const leave = mutation({
 			updatedAt: now,
 		});
 
+		await deletePartyMembershipByUserAndParty(ctx, user._id, args.partyId);
+
 		const isActive = isPartyActive(party.status);
 		await applyPartyMetricsDelta(ctx, {
 			activePlayers: isActive && leavingMember.status === "accepted" ? -1 : 0,
@@ -699,6 +774,101 @@ export const leave = mutation({
 		}
 
 		return updated;
+	},
+});
+
+const usersInMultiplePartiesValidator = v.object({
+	userId: v.id("users"),
+	partyIds: v.array(v.id("parties")),
+});
+
+const usersWithMultipleAccountsInPartyValidator = v.object({
+	userId: v.id("users"),
+	partyId: v.id("parties"),
+	accountIds: v.array(v.id("playerAccounts")),
+});
+
+export const auditMembershipConflicts = internalQuery({
+	args: {},
+	returns: v.object({
+		generatedAt: v.number(),
+		usersInMultipleParties: v.array(usersInMultiplePartiesValidator),
+		usersWithMultipleAccountsInParty: v.array(
+			usersWithMultipleAccountsInPartyValidator,
+		),
+	}),
+	handler: async (ctx) => {
+		const parties = await ctx.db.query("parties").collect();
+		const userPartyIds = new Map<
+			Doc<"users">["_id"],
+			Set<Doc<"parties">["_id"]>
+		>();
+		const partyUserAccounts = new Map<
+			string,
+			Set<Doc<"playerAccounts">["_id"]>
+		>();
+
+		for (const party of parties) {
+			for (const member of party.members) {
+				const partiesForUser =
+					userPartyIds.get(member.memberId) ?? new Set<Doc<"parties">["_id"]>();
+				partiesForUser.add(party._id);
+				userPartyIds.set(member.memberId, partiesForUser);
+
+				if (!member.playerAccountId) {
+					continue;
+				}
+
+				const key = `${party._id}:${member.memberId}`;
+				const accountIds =
+					partyUserAccounts.get(key) ?? new Set<Doc<"playerAccounts">["_id"]>();
+				accountIds.add(member.playerAccountId);
+				partyUserAccounts.set(key, accountIds);
+			}
+
+			const leaderEntry = party.members.find(
+				(member) =>
+					member.role === "leader" && member.memberId === party.ownerId,
+			);
+			const ownerParties =
+				userPartyIds.get(party.ownerId) ?? new Set<Doc<"parties">["_id"]>();
+			ownerParties.add(party._id);
+			userPartyIds.set(party.ownerId, ownerParties);
+
+			if (leaderEntry?.playerAccountId) {
+				const key = `${party._id}:${party.ownerId}`;
+				const accountIds =
+					partyUserAccounts.get(key) ?? new Set<Doc<"playerAccounts">["_id"]>();
+				accountIds.add(leaderEntry.playerAccountId);
+				partyUserAccounts.set(key, accountIds);
+			}
+		}
+
+		const usersInMultipleParties = Array.from(userPartyIds.entries())
+			.filter(([, partyIds]) => partyIds.size > 1)
+			.map(([userId, partyIds]) => ({
+				userId,
+				partyIds: Array.from(partyIds),
+			}));
+
+		const usersWithMultipleAccountsInParty = Array.from(
+			partyUserAccounts.entries(),
+		)
+			.filter(([, accountIds]) => accountIds.size > 1)
+			.map(([key, accountIds]) => {
+				const [partyId, userId] = key.split(":");
+				return {
+					userId: userId as Doc<"users">["_id"],
+					partyId: partyId as Doc<"parties">["_id"],
+					accountIds: Array.from(accountIds),
+				};
+			});
+
+		return {
+			generatedAt: Date.now(),
+			usersInMultipleParties,
+			usersWithMultipleAccountsInParty,
+		};
 	},
 });
 
@@ -795,5 +965,61 @@ export const backfillMemberRoles = internalMutation({
 		}
 
 		return { updatedParties, leadersAdded };
+	},
+});
+
+/** One-time backfill: populate partyMemberships from existing parties.members. Run once after adding the partyMemberships table. */
+export const backfillPartyMemberships = internalMutation({
+	args: {},
+	returns: v.object({ inserted: v.number() }),
+	handler: async (ctx) => {
+		const parties = await ctx.db.query("parties").collect();
+		let inserted = 0;
+
+		for (const party of parties) {
+			const leaderEntry = party.members.find(
+				(m) => m.role === "leader" && m.memberId === party.ownerId,
+			);
+			const existingLeader = await ctx.db
+				.query("partyMemberships")
+				.withIndex("by_userId_partyId", (q) =>
+					q.eq("userId", party.ownerId).eq("partyId", party._id),
+				)
+				.unique();
+			if (!existingLeader) {
+				await ctx.db.insert("partyMemberships", {
+					userId: party.ownerId,
+					partyId: party._id,
+					role: "leader",
+					status: "accepted",
+					playerAccountId: leaderEntry?.playerAccountId,
+				});
+				inserted++;
+			}
+
+			for (const member of party.members) {
+				const role = member.role ?? "member";
+				if (role === "leader") continue;
+
+				const existing = await ctx.db
+					.query("partyMemberships")
+					.withIndex("by_userId_partyId", (q) =>
+						q.eq("userId", member.memberId).eq("partyId", party._id),
+					)
+					.unique();
+				if (!existing) {
+					await ctx.db.insert("partyMemberships", {
+						userId: member.memberId,
+						partyId: party._id,
+						role: "member",
+						status: member.status,
+						playerAccountId: member.playerAccountId,
+					});
+					inserted++;
+				}
+			}
+		}
+
+		return { inserted };
 	},
 });

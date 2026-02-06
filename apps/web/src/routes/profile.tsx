@@ -163,6 +163,10 @@ function ProfileRoute() {
 		api.users.getCurrent,
 		isAuthenticated ? {} : undefined,
 	);
+	const partyLock = useQuery(
+		api.parties.getActiveForUser,
+		isAuthenticated ? {} : "skip",
+	);
 	const accounts = useQuery(
 		api.playerAccounts.list,
 		isAuthenticated ? {} : undefined,
@@ -231,6 +235,11 @@ function ProfileRoute() {
 	const isAccountsLoading = isAuthenticated && accounts === undefined;
 	const userImage = user?.image ?? null;
 	const activeAccountId = appUser?.activePlayerAccountId ?? null;
+	const partyLockMessage = partyLock
+		? partyLock.membershipStatus === "pending"
+			? `Account switching is locked while your "${partyLock.name}" request is pending.`
+			: `Account switching is locked while you are in "${partyLock.name}".`
+		: null;
 	const activeAccount = activeAccountId
 		? (accountList.find((account) => account._id === activeAccountId) ?? null)
 		: null;
@@ -390,6 +399,10 @@ function ProfileRoute() {
 
 	const handleSetActiveAccount = async (accountId: Id<"playerAccounts">) => {
 		if (activeAccountId === accountId) return;
+		if (partyLock) {
+			toast.error("Leave or resolve your current party before switching account.");
+			return;
+		}
 		setActiveUpdatingId(accountId);
 		try {
 			await setActiveAccount({ accountId });
@@ -582,6 +595,9 @@ function ProfileRoute() {
 						Link your OSRS accounts, keep them verified, and make sure party
 						leaders know exactly who is ready to go.
 					</p>
+					{partyLockMessage ? (
+						<p className="text-sm text-destructive">{partyLockMessage}</p>
+					) : null}
 					<div className="profile-stats">
 						<div className="profile-stat-card">
 							<span className="profile-stat-label">Linked Accounts</span>

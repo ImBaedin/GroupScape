@@ -66,6 +66,10 @@ function PartyDetailRoute() {
 	const { isAuthenticated, isLoading } = useConvexAuth();
 	const convex = useConvex();
 	const appUser = useQuery(api.users.getCurrent, isAuthenticated ? {} : "skip");
+	const partyLock = useQuery(
+		api.parties.getActiveForUser,
+		isAuthenticated ? {} : "skip",
+	);
 	const accounts = useQuery(
 		api.playerAccounts.list,
 		isAuthenticated ? {} : "skip",
@@ -237,11 +241,15 @@ function PartyDetailRoute() {
 	};
 
 	const isVerified = selectedStatus === "verified";
+	const isLockedToDifferentParty = Boolean(
+		party && partyLock && partyLock._id !== party._id,
+	);
 	const canRequest =
 		Boolean(party && selectedAccountId && isAuthenticated) &&
 		partyStatus !== "closed" &&
 		!memberEntry &&
 		!isOwner &&
+		!isLockedToDifferentParty &&
 		openSlots > 0;
 
 	const helperMessage = (() => {
@@ -260,6 +268,11 @@ function PartyDetailRoute() {
 		if (memberStatus === "pending") {
 			return "Your request is pending leader approval.";
 		}
+		if (isLockedToDifferentParty && partyLock) {
+			return partyLock.membershipStatus === "pending"
+				? `You already have a pending request in "${partyLock.name}".`
+				: `You are already in "${partyLock.name}". Leave it before joining another party.`;
+		}
 		if (partyStatus === "closed") {
 			return "This party is closed for new invites.";
 		}
@@ -274,6 +287,15 @@ function PartyDetailRoute() {
 
 	const handleRequestJoin = async () => {
 		if (!party || !selectedAccountId) return;
+		if (isLockedToDifferentParty && partyLock) {
+			const message =
+				partyLock.membershipStatus === "pending"
+					? `You already have a pending request in "${partyLock.name}".`
+					: `You are already in "${partyLock.name}". Leave it before joining another party.`;
+			setRequestError(message);
+			toast.error(message);
+			return;
+		}
 		setIsRequesting(true);
 		setRequestError(null);
 		try {

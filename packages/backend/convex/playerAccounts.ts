@@ -7,6 +7,7 @@ import {
 	query,
 } from "./_generated/server";
 import { requireUser, getOptionalUser } from "./lib/auth";
+import { getUserPartyLock, getUserPartyMemberships } from "./lib/partyMembership";
 import { STATS_STALE_MS, statsSummaryValidator } from "./statsSummary";
 
 const verificationStatusValidator = v.union(
@@ -375,6 +376,26 @@ const remove = mutation({
 			user.activePlayerAccountId === args.accountId
 				? updatedAccounts[0] ?? null
 				: user.activePlayerAccountId ?? null;
+
+		const partyMemberships = await getUserPartyMemberships(ctx, user._id);
+		const accountIsPartyBound = partyMemberships.some(
+			(membership) => membership.playerAccountId === args.accountId,
+		);
+		if (accountIsPartyBound) {
+			throw new ConvexError(
+				"Cannot remove an account that is currently tied to a party membership.",
+			);
+		}
+
+		const partyLock = await getUserPartyLock(ctx, user._id);
+		const wouldSwitchActiveAccount =
+			user.activePlayerAccountId === args.accountId &&
+			nextActive !== user.activePlayerAccountId;
+		if (partyLock && wouldSwitchActiveAccount) {
+			throw new ConvexError(
+				"Cannot remove your active account while you are in a party.",
+			);
+		}
 
 		await ctx.db.patch(user._id, {
 			playerAccounts: updatedAccounts,

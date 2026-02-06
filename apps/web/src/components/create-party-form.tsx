@@ -1,5 +1,5 @@
 import { api } from "@GroupScape/backend/convex/_generated/api";
-import { useMutation } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -21,20 +21,40 @@ const PARTY_SIZE_MAX = 254;
 const DEFAULT_PARTY_SIZE = 5;
 
 export default function CreatePartyForm() {
-	const [partySizeLimit, setPartySizeLimit] = useState<number>(
-		DEFAULT_PARTY_SIZE,
-	);
+	const { isAuthenticated } = useConvexAuth();
+	const [partySizeLimit, setPartySizeLimit] =
+		useState<number>(DEFAULT_PARTY_SIZE);
 	const [partyName, setPartyName] = useState("");
 	const [description, setDescription] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [submitError, setSubmitError] = useState<string | null>(null);
 
 	const createParty = useMutation(api.parties.create);
+	const partyLock = useQuery(
+		api.parties.getActiveForUser,
+		isAuthenticated ? {} : "skip",
+	);
+	const isPartyLoading = partyLock === undefined;
+	const isPartyLocked = !isPartyLoading && Boolean(partyLock);
+	const lockMessage =
+		!isPartyLoading && partyLock
+			? partyLock.membershipStatus === "pending"
+				? `You already have a pending request in "${partyLock.name}".`
+				: `You are already in "${partyLock.name}".`
+			: null;
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		const trimmedName = partyName.trim();
 		if (!trimmedName) return;
+		if (isPartyLocked) {
+			const message =
+				lockMessage ??
+				"You cannot create a new party while you are already in one.";
+			setSubmitError(null);
+			toast.error(message);
+			return;
+		}
 
 		setIsSubmitting(true);
 		setSubmitError(null);
@@ -67,7 +87,9 @@ export default function CreatePartyForm() {
 		<Card className="w-full max-w-2xl">
 			<CardHeader>
 				<CardTitle>Create a Party</CardTitle>
-				<CardDescription>Kick off a new group with a clear goal.</CardDescription>
+				<CardDescription>
+					Kick off a new group with a clear goal.
+				</CardDescription>
 			</CardHeader>
 			<CardContent>
 				<form onSubmit={handleSubmit} className="space-y-6">
@@ -132,13 +154,25 @@ export default function CreatePartyForm() {
 
 					<Button
 						type="submit"
-						disabled={!isNameValid || !isSizeValid || isSubmitting}
+						disabled={
+							isPartyLoading ||
+							!isNameValid ||
+							!isSizeValid ||
+							isSubmitting ||
+							isPartyLocked
+						}
 						className="w-full"
 					>
 						{isSubmitting ? "Creating..." : "Create Party"}
 					</Button>
+					{lockMessage && (
+						<p className="text-destructive text-sm">
+							{lockMessage} Leave or resolve that party before creating a new
+							one.
+						</p>
+					)}
 					{submitError && (
-						<p className="text-sm text-destructive">{submitError}</p>
+						<p className="text-destructive text-sm">{submitError}</p>
 					)}
 				</form>
 			</CardContent>

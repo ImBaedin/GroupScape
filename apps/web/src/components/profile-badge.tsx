@@ -84,6 +84,10 @@ export default function ProfileBadge() {
 		api.playerAccounts.list,
 		isAuthenticated ? {} : undefined,
 	);
+	const partyLock = useQuery(
+		api.parties.getActiveForUser,
+		isAuthenticated ? {} : "skip",
+	);
 	const headshotUrl = useQuery(
 		api.playerAccounts.getHeadshotUrl,
 		isAuthenticated && appUser?.activePlayerAccountId
@@ -112,6 +116,12 @@ export default function ProfileBadge() {
 	const initials = getInitials(user?.name);
 	const accountList = accounts ?? [];
 	const activeAccountId = appUser?.activePlayerAccountId ?? null;
+	const isPartyLocked = Boolean(partyLock);
+	const lockMessage = partyLock
+		? partyLock.membershipStatus === "pending"
+			? `Pending party request in ${partyLock.name}`
+			: `In party: ${partyLock.name}`
+		: null;
 	const activeAccountName =
 		accountList.find((account) => account._id === activeAccountId)?.username ??
 		"Select account";
@@ -119,6 +129,10 @@ export default function ProfileBadge() {
 
 	const handleSetActiveAccount = async (accountId: Id<"playerAccounts">) => {
 		if (activeAccountId === accountId) return;
+		if (isPartyLocked) {
+			toast.error("Leave or resolve your current party before switching account.");
+			return;
+		}
 		setActiveUpdatingId(accountId);
 		try {
 			await setActiveAccount({ accountId });
@@ -168,10 +182,13 @@ export default function ProfileBadge() {
 								account={account}
 								isActive={activeAccountId === account._id}
 								onSelect={handleSetActiveAccount}
-								disabled={activeUpdatingId !== null}
+								disabled={activeUpdatingId !== null || isPartyLocked}
 							/>
 						))
 					)}
+					{lockMessage ? (
+						<DropdownMenuItem disabled>{lockMessage}</DropdownMenuItem>
+					) : null}
 				</DropdownMenuGroup>
 				<DropdownMenuSeparator />
 				<DropdownMenuGroup>

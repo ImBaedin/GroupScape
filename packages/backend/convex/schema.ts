@@ -104,6 +104,21 @@ export default defineSchema({
 			filterFields: ["status"],
 		}),
 
+	/**
+	 * Denormalized party memberships for O(1) lookup by userId.
+	 * Kept in sync with parties.members on create/join/leave/reviewRequest/remove.
+	 */
+	partyMemberships: defineTable({
+		userId: v.id("users"),
+		partyId: v.id("parties"),
+		role: memberRole,
+		status: memberStatus,
+		playerAccountId: v.optional(v.id("playerAccounts")),
+	})
+		.index("by_userId", ["userId"])
+		.index("by_partyId", ["partyId"])
+		.index("by_userId_partyId", ["userId", "partyId"]),
+
 	partyMetrics: defineTable({
 		kind: v.literal("partyMetrics"),
 		activeParties: v.number(),
