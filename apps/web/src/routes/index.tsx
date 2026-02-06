@@ -21,6 +21,7 @@ function HomeComponent() {
 	const { isAuthenticated } = useConvexAuth();
 	const navigate = useNavigate();
 	const [searchQuery, setSearchQuery] = useState("");
+	const [debouncedQuery, setDebouncedQuery] = useState("");
 	const metrics = useQuery(api.parties.getHomeMetrics, {});
 	const numberFormatter = useMemo(() => new Intl.NumberFormat(), []);
 	const dateFormatter = useMemo(
@@ -31,13 +32,31 @@ function HomeComponent() {
 		[],
 	);
 	const trimmedQuery = searchQuery.trim();
+	const debouncedTrimmedQuery = debouncedQuery.trim();
+
+	useEffect(() => {
+		const timeoutId = window.setTimeout(() => {
+			setDebouncedQuery(searchQuery);
+		}, 250);
+		return () => {
+			window.clearTimeout(timeoutId);
+		};
+	}, [searchQuery]);
+
 	const searchResults = useQuery(
 		api.parties.searchActive,
-		trimmedQuery.length > 1 ? { query: trimmedQuery, limit: 6 } : "skip",
+		debouncedTrimmedQuery.length > 1
+			? { query: debouncedTrimmedQuery, limit: 6 }
+			: "skip",
 	);
 	const metricsReady = metrics !== undefined;
 	const searchReady = trimmedQuery.length > 1;
-	const isSearching = searchReady && searchResults === undefined;
+	const waitingForDebounce =
+		searchReady && trimmedQuery !== debouncedTrimmedQuery;
+	const isSearching =
+		searchReady &&
+		(waitingForDebounce ||
+			(debouncedTrimmedQuery.length > 1 && searchResults === undefined));
 	const searchList = searchResults ?? [];
 
 	useEffect(() => {

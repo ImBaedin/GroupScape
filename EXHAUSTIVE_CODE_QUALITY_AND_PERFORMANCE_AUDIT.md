@@ -216,7 +216,7 @@
 - Future-self note:
   - Shift redirect into route `beforeLoad`/guard layer.
 
-### 21. [Medium] Home page search triggers reactive query on every keystroke
+### 21. [Medium] Home page search triggers reactive query on every keystroke [Completed]
 - Where: `apps/web/src/routes/index.tsx:33-37`, `apps/web/src/routes/index.tsx:139-144`
 - Why this is a problem:
   - No debounce means frequent query churn while typing.
