@@ -731,7 +731,7 @@ export const remove = mutation({
 export const leave = mutation({
 	args: {
 		partyId: v.id("parties"),
-		playerAccountId: v.id("playerAccounts"),
+		playerAccountId: v.optional(v.id("playerAccounts")),
 	},
 	returns: partyValidator,
 	handler: async (ctx, args) => {
@@ -746,7 +746,8 @@ export const leave = mutation({
 			(member) =>
 				member.role !== "leader" &&
 				member.memberId === user._id &&
-				member.playerAccountId === args.playerAccountId,
+				(args.playerAccountId === undefined ||
+					member.playerAccountId === args.playerAccountId),
 		);
 
 		if (memberIndex === -1) {
@@ -769,6 +770,63 @@ export const leave = mutation({
 		const isActive = isPartyActive(party.status);
 		await applyPartyMetricsDelta(ctx, {
 			activePlayers: isActive && leavingMember.status === "accepted" ? -1 : 0,
+		});
+
+		const updated = await ctx.db.get(args.partyId);
+		if (!updated) {
+			throw new ConvexError("Party not found");
+		}
+
+		return updated;
+	},
+});
+
+export const kickMember = mutation({
+	args: {
+		partyId: v.id("parties"),
+		memberId: v.id("users"),
+	},
+	returns: partyValidator,
+	handler: async (ctx, args) => {
+		const user = await requireUser(ctx);
+
+		const party = await ctx.db.get(args.partyId);
+		if (!party) {
+			throw new ConvexError("Party not found");
+		}
+
+		if (party.ownerId !== user._id) {
+			throw new ConvexError("Not authorized to kick members");
+		}
+
+		if (args.memberId === party.ownerId) {
+			throw new ConvexError("Cannot kick the party leader");
+		}
+
+		const memberIndex = party.members.findIndex(
+			(member) =>
+				member.role !== "leader" &&
+				member.memberId === args.memberId &&
+				member.status === "accepted",
+		);
+		if (memberIndex === -1) {
+			throw new ConvexError("Accepted member not found");
+		}
+
+		const kickedMember = party.members[memberIndex];
+		const now = Date.now();
+		const nextMembers = party.members.filter((_, index) => index !== memberIndex);
+
+		await ctx.db.patch(args.partyId, {
+			members: nextMembers,
+			updatedAt: now,
+		});
+
+		await deletePartyMembershipByUserAndParty(ctx, args.memberId, args.partyId);
+
+		const isActive = isPartyActive(party.status);
+		await applyPartyMetricsDelta(ctx, {
+			activePlayers: isActive && kickedMember.status === "accepted" ? -1 : 0,
 		});
 
 		const updated = await ctx.db.get(args.partyId);

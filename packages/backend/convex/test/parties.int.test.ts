@@ -290,4 +290,115 @@ describe("parties integration", () => {
 			totalPlayers: 1,
 		});
 	});
+
+	it("leave removes an accepted member and decrements active player metrics", async () => {
+		const t = createConvexTest();
+		const { authed: ownerAuthed } = await createAuthedUser(t, "owner-leave");
+		const { authed: joinerAuthed, user: joinerUser } = await createAuthedUser(
+			t,
+			"joiner-leave",
+		);
+		await ownerAuthed.mutation(api.playerAccounts.add, {
+			username: "Owner Account",
+		});
+		const joinerAccount = await joinerAuthed.mutation(api.playerAccounts.add, {
+			username: "Joiner Account",
+		});
+		const partyId = await ownerAuthed.mutation(api.parties.create, {
+			name: "Leave Party",
+			partySizeLimit: 5,
+		});
+		await joinerAuthed.mutation(api.parties.requestJoin, {
+			partyId,
+			playerAccountId: joinerAccount._id,
+		});
+		await ownerAuthed.mutation(api.parties.reviewRequest, {
+			partyId,
+			memberId: joinerUser._id,
+			playerAccountId: joinerAccount._id,
+			approve: true,
+		});
+
+		const updated = await joinerAuthed.mutation(api.parties.leave, {
+			partyId,
+		});
+		const remaining = updated.members.find(
+			(member) => member.memberId === joinerUser._id,
+		);
+		expect(remaining).toBeUndefined();
+
+		const membership = await t.run((ctx) =>
+			ctx.db
+				.query("partyMemberships")
+				.withIndex("by_userId_partyId", (q) =>
+					q.eq("userId", joinerUser._id).eq("partyId", partyId),
+				)
+				.unique(),
+		);
+		expect(membership).toBeNull();
+
+		const metrics = await getMetrics(t);
+		expect(metrics).toMatchObject({
+			activeParties: 1,
+			activePlayers: 1,
+			totalParties: 1,
+			totalPlayers: 2,
+		});
+	});
+
+	it("kickMember removes accepted member and decrements active player metrics", async () => {
+		const t = createConvexTest();
+		const { authed: ownerAuthed } = await createAuthedUser(t, "owner-kick");
+		const { authed: joinerAuthed, user: joinerUser } = await createAuthedUser(
+			t,
+			"joiner-kick",
+		);
+		await ownerAuthed.mutation(api.playerAccounts.add, {
+			username: "Owner Account",
+		});
+		const joinerAccount = await joinerAuthed.mutation(api.playerAccounts.add, {
+			username: "Joiner Account",
+		});
+		const partyId = await ownerAuthed.mutation(api.parties.create, {
+			name: "Kick Party",
+			partySizeLimit: 5,
+		});
+		await joinerAuthed.mutation(api.parties.requestJoin, {
+			partyId,
+			playerAccountId: joinerAccount._id,
+		});
+		await ownerAuthed.mutation(api.parties.reviewRequest, {
+			partyId,
+			memberId: joinerUser._id,
+			playerAccountId: joinerAccount._id,
+			approve: true,
+		});
+
+		const updated = await ownerAuthed.mutation(api.parties.kickMember, {
+			partyId,
+			memberId: joinerUser._id,
+		});
+		const remaining = updated.members.find(
+			(member) => member.memberId === joinerUser._id,
+		);
+		expect(remaining).toBeUndefined();
+
+		const membership = await t.run((ctx) =>
+			ctx.db
+				.query("partyMemberships")
+				.withIndex("by_userId_partyId", (q) =>
+					q.eq("userId", joinerUser._id).eq("partyId", partyId),
+				)
+				.unique(),
+		);
+		expect(membership).toBeNull();
+
+		const metrics = await getMetrics(t);
+		expect(metrics).toMatchObject({
+			activeParties: 1,
+			activePlayers: 1,
+			totalParties: 1,
+			totalPlayers: 2,
+		});
+	});
 });

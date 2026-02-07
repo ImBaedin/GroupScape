@@ -1,4 +1,4 @@
-import { Check, CircleDot, Loader2, Trash2, Users, X } from "lucide-react";
+import { Check, CircleDot, Loader2, LogOut, Trash2, UserMinus, Users, X } from "lucide-react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import type { VerificationStatus } from "../constants";
 import { usePartyDetailContext } from "../context";
 import { useJoinRequestActions } from "../hooks/useJoinRequestActions";
+import { usePartyMembershipActions } from "../hooks/usePartyMembershipActions";
 import { usePartyOwnerActions } from "../hooks/usePartyOwnerActions";
 import { PendingVerificationBadge, VerificationBadge } from "./VerificationBadge";
 
@@ -30,6 +31,7 @@ function PartyLeaderPanel() {
 		derived: {
 			partyStatus,
 			pendingMembers,
+			acceptedMembers,
 			openSlots,
 			approvalsBlockedReason,
 			getMemberProfile,
@@ -40,6 +42,7 @@ function PartyLeaderPanel() {
 	const [statusUpdating, setStatusUpdating] = useState(false);
 	const [isClosingParty, setIsClosingParty] = useState(false);
 	const [reviewingKey, setReviewingKey] = useState<string | null>(null);
+	const [kickingMemberKey, setKickingMemberKey] = useState<string | null>(null);
 	const ownerActions = usePartyOwnerActions({ partyId: party._id });
 
 	const handleStatusChange = async (nextStatus: "open" | "closed") => {
@@ -81,6 +84,19 @@ function PartyLeaderPanel() {
 			await ownerActions.handleReviewRequest(member, approve);
 		} finally {
 			setReviewingKey((prev) => (prev === actionKey ? null : prev));
+		}
+	};
+
+	const handleKickMember = async (
+		member: (typeof acceptedMembers)[number],
+	) => {
+		if (kickingMemberKey) return;
+		const memberKey = `${member.memberId}:${member.playerAccountId ?? "none"}`;
+		setKickingMemberKey(memberKey);
+		try {
+			await ownerActions.handleKickMember(member);
+		} finally {
+			setKickingMemberKey((prev) => (prev === memberKey ? null : prev));
 		}
 	};
 
@@ -230,6 +246,57 @@ function PartyLeaderPanel() {
 					) : null}
 				</CardContent>
 			</Card>
+			<Card className="party-approval-card">
+				<CardHeader>
+					<CardTitle>Member management</CardTitle>
+					<CardDescription>Remove accepted members from the party.</CardDescription>
+				</CardHeader>
+				<CardContent className="party-approval-body">
+					{acceptedMembers.length === 0 ? (
+						<div className="party-approval-empty">No accepted members yet.</div>
+					) : (
+						<div className="party-approval-list">
+							{acceptedMembers.map((member) => {
+								const profile = getMemberProfile(member.playerAccountId);
+								const memberKey = `${member.memberId}:${member.playerAccountId ?? "none"}`;
+								const isKicking = kickingMemberKey === memberKey;
+								return (
+									<div
+										key={`${member.memberId}-${member.playerAccountId}`}
+										className="party-approval-item"
+									>
+										<div className="party-approval-info">
+											<span className="party-approval-name">
+												{formatMemberName(
+													member.memberId,
+													member.playerAccountId,
+													profile?.username,
+												)}
+											</span>
+											<span className="party-approval-meta">Accepted member</span>
+										</div>
+										<div className="party-approval-actions">
+											<Button
+												size="sm"
+												variant="destructive"
+												disabled={Boolean(kickingMemberKey)}
+												onClick={() => handleKickMember(member)}
+											>
+												{isKicking ? (
+													<Loader2 className="h-4 w-4 animate-spin" />
+												) : (
+													<UserMinus className="h-4 w-4" />
+												)}
+												Kick
+											</Button>
+										</div>
+									</div>
+								);
+							})}
+						</div>
+					)}
+				</CardContent>
+			</Card>
 		</>
 	);
 }
@@ -248,6 +315,8 @@ function PartyJoinPanel() {
 	>(null);
 	const [isRequesting, setIsRequesting] = useState(false);
 	const [requestError, setRequestError] = useState<string | null>(null);
+	const [isLeaving, setIsLeaving] = useState(false);
+	const membershipActions = usePartyMembershipActions({ partyId: party._id });
 
 	const joinActions = useJoinRequestActions({
 		isAuthenticated,
@@ -273,17 +342,54 @@ function PartyJoinPanel() {
 		setIsRequesting(false);
 	};
 
+	const handleLeaveParty = async () => {
+		if (isLeaving || !memberEntry) return;
+		setIsLeaving(true);
+		setRequestError(null);
+		const result = await membershipActions.handleLeaveParty(
+			memberEntry.playerAccountId,
+		);
+		if (!result.ok) {
+			setRequestError(result.error);
+		}
+		setIsLeaving(false);
+	};
+
 	return (
 		<Card className="party-join-card">
 			<CardHeader>
-				<CardTitle>Request to join</CardTitle>
+				<CardTitle>{memberEntry ? "Party membership" : "Request to join"}</CardTitle>
 				<CardDescription>
-					Choose an account to request to join. Verified accounts are reviewed
-					first.
+					{memberEntry
+						? "Leave the party at any time."
+						: "Choose an account to request to join. Verified accounts are reviewed first."}
 				</CardDescription>
 			</CardHeader>
 			<CardContent className="party-join-body">
-				{accountList.length === 0 ? (
+				{memberEntry ? (
+					<>
+						<div className="party-join-note">
+							{memberEntry.status === "pending"
+								? "Your join request is pending. Leave to cancel it."
+								: "You are currently in this party."}
+						</div>
+						<Button
+							variant="secondary"
+							className="party-join-button"
+							disabled={isLeaving}
+							onClick={handleLeaveParty}
+						>
+							{isLeaving ? (
+								<Loader2 className="h-4 w-4 animate-spin" />
+							) : (
+								<LogOut className="h-4 w-4" />
+							)}
+							{memberEntry.status === "pending"
+								? "Cancel request"
+								: "Leave party"}
+						</Button>
+					</>
+				) : accountList.length === 0 ? (
 					<div className="party-empty">
 						<p>No accounts linked yet.</p>
 						<p className="text-muted-foreground">
@@ -328,28 +434,32 @@ function PartyJoinPanel() {
 						})}
 					</div>
 				)}
-				<div
-					className={cn(
-						"party-join-note",
-						!joinActions.canRequest && "party-join-note-warning",
-					)}
-				>
-					{joinActions.helperMessage}
-				</div>
-				<Button
-					className="party-join-button"
-					disabled={!joinActions.canRequest || isRequesting}
-					onClick={handleRequestJoin}
-				>
-					{isRequesting ? (
-						<Loader2 className="h-4 w-4 animate-spin" />
-					) : (
-						<Users className="h-4 w-4" />
-					)}
-					{joinActions.memberStatus === "pending"
-						? "Request pending"
-						: "Send join request"}
-				</Button>
+				{!memberEntry ? (
+					<>
+						<div
+							className={cn(
+								"party-join-note",
+								!joinActions.canRequest && "party-join-note-warning",
+							)}
+						>
+							{joinActions.helperMessage}
+						</div>
+						<Button
+							className="party-join-button"
+							disabled={!joinActions.canRequest || isRequesting}
+							onClick={handleRequestJoin}
+						>
+							{isRequesting ? (
+								<Loader2 className="h-4 w-4 animate-spin" />
+							) : (
+								<Users className="h-4 w-4" />
+							)}
+							{joinActions.memberStatus === "pending"
+								? "Request pending"
+								: "Send join request"}
+						</Button>
+					</>
+				) : null}
 				{requestError ? (
 					<div className="party-join-error">{requestError}</div>
 				) : null}

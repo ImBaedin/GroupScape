@@ -20,6 +20,7 @@ export function usePartyOwnerActions({ partyId }: UsePartyOwnerActionsArgs) {
 	const reviewRequest = useMutation(api.parties.reviewRequest);
 	const updateStatus = useMutation(api.parties.updateStatus);
 	const removeParty = useMutation(api.parties.remove);
+	const kickMember = useMutation(api.parties.kickMember);
 
 	const handleStatusChange = async (
 		nextStatus: PartyStatus,
@@ -82,9 +83,28 @@ export function usePartyOwnerActions({ partyId }: UsePartyOwnerActionsArgs) {
 		return { ok: true };
 	};
 
+	const handleKickMember = async (
+		member: PartyMember,
+	): Promise<PartyOwnerActionResult> => {
+		try {
+			await kickMember({
+				partyId,
+				memberId: member.memberId,
+			});
+			toast.success("Member removed");
+			return { ok: true };
+		} catch (error) {
+			const message =
+				error instanceof Error ? error.message : "Unable to remove member";
+			toast.error(message);
+			return { ok: false, error: message };
+		}
+	};
+
 	return {
 		handleStatusChange,
 		handleCloseParty,
 		handleReviewRequest,
+		handleKickMember,
 	};
 }
