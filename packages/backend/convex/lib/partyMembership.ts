@@ -49,28 +49,30 @@ export const getUserPartyMemberships = async (
 		.withIndex("by_userId", (q) => q.eq("userId", userId))
 		.collect();
 
-	const memberships: UserPartyMembership[] = [];
+	const filteredRows = options?.excludePartyId
+		? rows.filter((row) => row.partyId !== options.excludePartyId)
+		: rows;
 
-	for (const row of rows) {
-		if (options?.excludePartyId && row.partyId === options.excludePartyId) {
-			continue;
-		}
+	const parties = await Promise.all(filteredRows.map((row) => ctx.db.get(row.partyId)));
 
-		const party = await ctx.db.get(row.partyId);
+	const memberships: UserPartyMembership[] = filteredRows.flatMap((row, index) => {
+		const party = parties[index];
 		if (!party) {
-			continue;
+			return [];
 		}
 
-		memberships.push({
-			partyId: row.partyId,
-			partyName: party.name,
-			partyStatus: party.status,
-			role: row.role,
-			membershipStatus: row.status,
-			playerAccountId: row.playerAccountId,
-			sortValue: getPartySortValue(party),
-		});
-	}
+		return [
+			{
+				partyId: row.partyId,
+				partyName: party.name,
+				partyStatus: party.status,
+				role: row.role,
+				membershipStatus: row.status,
+				playerAccountId: row.playerAccountId,
+				sortValue: getPartySortValue(party),
+			},
+		];
+	});
 
 	return memberships.sort(compareMemberships);
 };

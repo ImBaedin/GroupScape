@@ -141,7 +141,7 @@
 - Future-self note:
   - Split into `parties.queries.ts`, `parties.mutations.ts`, `parties.maintenance.ts`.
 
-### 13. [High] Sequential N+1 membership lookups on hot auth paths
+### 13. [High] Sequential N+1 membership lookups on hot auth paths [Completed]
 - Where: `packages/backend/convex/lib/partyMembership.ts:47-75`
 - Why this is a problem:
   - `getUserPartyMemberships` fetches membership rows, then `ctx.db.get` per row sequentially.
