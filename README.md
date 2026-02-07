@@ -63,3 +63,23 @@ GroupScape/
 - `bun run dev:setup`: Setup and configure your Convex project
 - `bun run check-types`: Check TypeScript types across all apps
 - `bun run check`: Run Biome formatting and linting
+- `bun run test`: Run all unit + integration tests across the monorepo
+- `bun run test:unit`: Run unit tests only
+- `bun run test:integration`: Run integration tests only
+- `bun run test:web`: Run all web tests
+- `bun run test:backend`: Run backend integration tests
+- `bun run test:runelite`: Run RuneLite client tests
+- `bun run test:osrs-content`: Run OSRS content tests
+
+## Testing
+
+The repo uses **Vitest** across packages via `vitest.workspace.ts`.
+
+- Unit test file naming: `*.unit.test.ts` / `*.unit.test.tsx`
+- Integration test file naming: `*.int.test.ts` / `*.int.test.tsx`
+
+### Placement
+
+- Backend integration tests live under `packages/backend/convex/test` and run with `convex-test` (in-memory Convex runtime, no live Convex dev server required).
+- Web feature integration tests live under `apps/web/src` and use React Testing Library with mocked Convex React hooks.
+- Pure logic unit tests live beside source files in their package `src/` directories.

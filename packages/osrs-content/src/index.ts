@@ -104,7 +104,7 @@ const theatreOfBloodSchema = baseContentSchema.extend({
 	...partySizeRange(2, 5),
 });
 
-export const contentScema = z.discriminatedUnion("name", [
+export const contentScema = z.discriminatedUnion("contentName", [
 	royalTitansSchema,
 	barbarianAssaultSchema,
 	theatreOfBloodSchema,

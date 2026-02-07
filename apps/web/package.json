@@ -8,7 +8,10 @@
 		"build": "vite build",
 		"serve": "vite preview",
 		"start": "vite",
-		"check-types": "tsc --noEmit"
+		"check-types": "tsc --noEmit",
+		"test": "vitest run --config vitest.config.ts",
+		"test:unit": "vitest run --config vitest.config.ts unit.test",
+		"test:integration": "vitest run --config vitest.config.ts int.test"
 	},
 	"dependencies": {
 		"@GroupScape/backend": "workspace:*",

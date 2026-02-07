@@ -64,8 +64,8 @@ export function generateSessionId(): string {
 	crypto.getRandomValues(bytes);
 
 	// Set version (4) and variant bits
-	bytes[6] = (bytes[6] & 0x0f) | 0x40; // Version 4
-	bytes[8] = (bytes[8] & 0x3f) | 0x80; // Variant 10
+	bytes[6] = (bytes[6]! & 0x0f) | 0x40; // Version 4
+	bytes[8] = (bytes[8]! & 0x3f) | 0x80; // Variant 10
 
 	// Convert to UUID string format
 	const hex = Array.from(bytes)

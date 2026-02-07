@@ -3,7 +3,10 @@
 	"version": "1.0.0",
 	"scripts": {
 		"dev": "convex dev",
-		"dev:setup": "convex dev --configure --until-success"
+		"dev:setup": "convex dev --configure --until-success",
+		"check-types": "tsc --noEmit -p convex/tsconfig.json",
+		"test": "vitest run --config vitest.config.ts",
+		"test:integration": "vitest run --config vitest.config.ts int.test.ts"
 	},
 	"author": "",
 	"license": "ISC",
