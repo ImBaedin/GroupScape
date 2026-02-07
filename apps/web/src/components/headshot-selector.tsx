@@ -1,14 +1,10 @@
 import { api } from "@GroupScape/backend/convex/_generated/api";
 import { OrbitControls, PerspectiveCamera, useCursor } from "@react-three/drei";
-import {
-	Canvas,
-	type ThreeEvent,
-	useFrame,
-	useThree,
-} from "@react-three/fiber";
+import { Canvas, type ThreeEvent, useFrame, useThree } from "@react-three/fiber";
 import { useAction } from "convex/react";
 import {
 	Suspense,
+	useCallback,
 	useEffect,
 	useImperativeHandle,
 	useRef,
@@ -24,63 +20,103 @@ interface HeadshotSelectorProps {
 	onComplete: (imageData: string) => void;
 }
 
-function Model({ base64Data }: { base64Data: string }) {
-	const meshRef = useRef<THREE.Mesh>(null);
+interface SceneHandle {
+	capture: () => string | null;
+}
+
+const PLAYER_MODEL_SCALE = 2;
+const PET_MODEL_SCALE = 1.5;
+const MODEL_ROTATION = new THREE.Euler(-1.55, 0, 0.1);
+
+function decodeBase64ToBytes(base64Data: string): Uint8Array {
+	const binaryString = atob(base64Data);
+	const bytes = new Uint8Array(binaryString.length);
+	for (let i = 0; i < binaryString.length; i++) {
+		bytes[i] = binaryString.charCodeAt(i);
+	}
+	return bytes;
+}
+
+function normalizeGeometry(geometry: BufferGeometry, scaleTarget: number) {
+	const positionAttribute = geometry.attributes.position;
+	if (!positionAttribute) {
+		throw new Error("PLY geometry missing position attribute");
+	}
+
+	geometry.computeVertexNormals();
+
+	const box = new THREE.Box3().setFromBufferAttribute(
+		positionAttribute as THREE.BufferAttribute,
+	);
+	const center = box.getCenter(new THREE.Vector3());
+	const size = box.getSize(new THREE.Vector3());
+	const maxDim = Math.max(size.x, size.y, size.z);
+	const scale = maxDim > 0 ? scaleTarget / maxDim : 1;
+
+	geometry.translate(-center.x, -center.y, -center.z);
+	geometry.scale(scale, scale, scale);
+	geometry.applyQuaternion(new THREE.Quaternion().setFromEuler(MODEL_ROTATION));
+}
+
+function usePlyGeometry(base64Data: string | null, scaleTarget: number) {
 	const [geometry, setGeometry] = useState<BufferGeometry | null>(null);
+	const geometryRef = useRef<BufferGeometry | null>(null);
 
 	useEffect(() => {
-		// Decode base64 PLY data
-		const binaryString = atob(base64Data);
-		const bytes = new Uint8Array(binaryString.length);
-		for (let i = 0; i < binaryString.length; i++) {
-			bytes[i] = binaryString.charCodeAt(i);
+		if (!base64Data) {
+			setGeometry((previous) => {
+				previous?.dispose();
+				geometryRef.current = null;
+				return null;
+			});
+			return;
 		}
 
-		// Create a blob and load it with PLYLoader
-		const blob = new Blob([bytes], { type: "application/octet-stream" });
-		const url = URL.createObjectURL(blob);
+		try {
+			const loader = new PLYLoader();
+			const bytes = decodeBase64ToBytes(base64Data);
+			const geometryBuffer = bytes.buffer.slice(
+				bytes.byteOffset,
+				bytes.byteOffset + bytes.byteLength,
+			) as ArrayBuffer;
+			const loadedGeometry = loader.parse(geometryBuffer);
+			normalizeGeometry(loadedGeometry, scaleTarget);
+			setGeometry((previous) => {
+				if (previous && previous !== loadedGeometry) {
+					previous.dispose();
+				}
+				geometryRef.current = loadedGeometry;
+				return loadedGeometry;
+			});
+		} catch (error) {
+			console.error("Error loading PLY geometry:", error);
+			setGeometry((previous) => {
+				previous?.dispose();
+				geometryRef.current = null;
+				return null;
+			});
+		}
+	}, [base64Data, scaleTarget]);
 
-		const loader = new PLYLoader();
-		loader.load(
-			url,
-			(loadedGeometry: BufferGeometry) => {
-				// Center and scale the geometry
-				loadedGeometry.computeVertexNormals();
-				const box = new THREE.Box3().setFromBufferAttribute(
-					loadedGeometry.attributes.position as THREE.BufferAttribute,
-				);
-				const center = box.getCenter(new THREE.Vector3());
-				const size = box.getSize(new THREE.Vector3());
-				const maxDim = Math.max(size.x, size.y, size.z);
-				const scale = 2 / maxDim;
+	useEffect(() => {
+		return () => {
+			geometryRef.current?.dispose();
+			geometryRef.current = null;
+		};
+	}, []);
 
-				// Center the geometry
-				loadedGeometry.translate(-center.x, -center.y, -center.z);
-				// Scale to fit in view
-				loadedGeometry.scale(scale, scale, scale);
+	return geometry;
+}
 
-				// Apply initial rotation
-				const euler = new THREE.Euler(-1.55, 0, 0.1);
-				const quaternion = new THREE.Quaternion().setFromEuler(euler);
-				loadedGeometry.applyQuaternion(quaternion);
-
-				setGeometry(loadedGeometry);
-				URL.revokeObjectURL(url);
-			},
-			undefined,
-			(error: unknown) => {
-				console.error("Error loading PLY:", error);
-				URL.revokeObjectURL(url);
-			},
-		);
-	}, [base64Data]);
+function Model({ base64Data }: { base64Data: string }) {
+	const geometry = usePlyGeometry(base64Data, PLAYER_MODEL_SCALE);
 
 	if (!geometry) {
 		return null;
 	}
 
 	return (
-		<mesh ref={meshRef} geometry={geometry}>
+		<mesh geometry={geometry}>
 			<meshStandardMaterial
 				vertexColors
 				side={THREE.DoubleSide}
@@ -93,72 +129,41 @@ function Model({ base64Data }: { base64Data: string }) {
 function PetModel({
 	base64Data,
 	position,
-	onPositionChange,
+	onPositionCommit,
 	onDragChange,
 }: {
 	base64Data: string;
 	position: [number, number, number];
-	onPositionChange: (position: [number, number, number]) => void;
+	onPositionCommit: (position: [number, number, number]) => void;
 	onDragChange: (isDragging: boolean) => void;
 }) {
 	const meshRef = useRef<THREE.Mesh>(null);
-	const [geometry, setGeometry] = useState<BufferGeometry | null>(null);
+	const geometry = usePlyGeometry(base64Data, PET_MODEL_SCALE);
 	const [hovered, setHovered] = useState(false);
 	const [isDragging, setIsDragging] = useState(false);
 	const raycaster = useRef<THREE.Raycaster>(new THREE.Raycaster());
 	const mouse = useRef<THREE.Vector2>(new THREE.Vector2());
+	const positionRef = useRef<[number, number, number]>(position);
 	const { camera, gl } = useThree();
 
 	useCursor(hovered || isDragging);
 
 	useEffect(() => {
-		if (!base64Data) return;
-
-		// Decode base64 PLY data
-		const binaryString = atob(base64Data);
-		const bytes = new Uint8Array(binaryString.length);
-		for (let i = 0; i < binaryString.length; i++) {
-			bytes[i] = binaryString.charCodeAt(i);
+		positionRef.current = position;
+		if (meshRef.current) {
+			meshRef.current.position.set(...position);
 		}
+	}, [position]);
 
-		// Create a blob and load it with PLYLoader
-		const blob = new Blob([bytes], { type: "application/octet-stream" });
-		const url = URL.createObjectURL(blob);
-
-		const loader = new PLYLoader();
-		loader.load(
-			url,
-			(loadedGeometry: BufferGeometry) => {
-				// Center and scale the geometry (smaller scale for pet)
-				loadedGeometry.computeVertexNormals();
-				const box = new THREE.Box3().setFromBufferAttribute(
-					loadedGeometry.attributes.position as THREE.BufferAttribute,
-				);
-				const center = box.getCenter(new THREE.Vector3());
-				const size = box.getSize(new THREE.Vector3());
-				const maxDim = Math.max(size.x, size.y, size.z);
-				const scale = 1.5 / maxDim; // Slightly smaller than player
-
-				// Center the geometry
-				loadedGeometry.translate(-center.x, -center.y, -center.z);
-				// Scale to fit in view
-				loadedGeometry.scale(scale, scale, scale);
-
-				// Apply initial rotation (same as player model)
-				const euler = new THREE.Euler(-1.55, 0, 0.1);
-				const quaternion = new THREE.Quaternion().setFromEuler(euler);
-				loadedGeometry.applyQuaternion(quaternion);
-
-				setGeometry(loadedGeometry);
-				URL.revokeObjectURL(url);
-			},
-			undefined,
-			(error: unknown) => {
-				console.error("Error loading pet PLY:", error);
-				URL.revokeObjectURL(url);
-			},
-		);
-	}, [base64Data]);
+	const stopDragging = useCallback(() => {
+		if (!isDragging) {
+			return;
+		}
+		setIsDragging(false);
+		onDragChange(false);
+		gl.domElement.style.cursor = "";
+		onPositionCommit(positionRef.current);
+	}, [gl, isDragging, onDragChange, onPositionCommit]);
 
 	const handlePointerDown = (e: ThreeEvent<PointerEvent>) => {
 		e.stopPropagation();
@@ -167,43 +172,37 @@ function PetModel({
 		gl.domElement.style.cursor = "grabbing";
 	};
 
-	const handlePointerUp = () => {
-		setIsDragging(false);
-		onDragChange(false);
-		gl.domElement.style.cursor = "";
-	};
-
 	useFrame((state) => {
-		if (!isDragging || !meshRef.current) return;
+		if (!isDragging || !meshRef.current) {
+			return;
+		}
 
-		// Use pointer position directly (already in normalized device coordinates)
 		mouse.current.set(state.pointer.x, state.pointer.y);
-
-		// Create ray from camera through mouse position
 		raycaster.current.setFromCamera(mouse.current, camera);
 
-		// Intersect with the drag plane (Y = position[1])
-		const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -position[1]);
+		const plane = new THREE.Plane(
+			new THREE.Vector3(0, 1, 0),
+			-positionRef.current[1],
+		);
 		const intersection = new THREE.Vector3();
-		raycaster.current.ray.intersectPlane(plane, intersection);
-
-		if (intersection) {
-			// Update position (only X and Z, keep Y fixed)
-			const newPosition: [number, number, number] = [
-				intersection.x,
-				position[1],
-				intersection.z,
-			];
-			onPositionChange(newPosition);
-			meshRef.current.position.set(...newPosition);
+		const hasIntersection = raycaster.current.ray.intersectPlane(
+			plane,
+			intersection,
+		);
+		if (!hasIntersection) {
+			return;
 		}
+
+		const nextPosition: [number, number, number] = [
+			intersection.x,
+			positionRef.current[1],
+			intersection.z,
+		];
+		positionRef.current = nextPosition;
+		meshRef.current.position.set(...nextPosition);
 	});
 
-	useEffect(() => {
-		if (meshRef.current) {
-			meshRef.current.position.set(...position);
-		}
-	}, [position]);
+	useEffect(() => stopDragging, [stopDragging]);
 
 	if (!geometry) {
 		return null;
@@ -213,11 +212,15 @@ function PetModel({
 		<mesh
 			ref={meshRef}
 			geometry={geometry}
-			position={position}
 			onPointerOver={() => setHovered(true)}
-			onPointerOut={() => setHovered(false)}
+			onPointerOut={() => {
+				setHovered(false);
+				stopDragging();
+			}}
 			onPointerDown={handlePointerDown}
-			onPointerUp={handlePointerUp}
+			onPointerUp={stopDragging}
+			onPointerCancel={stopDragging}
+			onPointerMissed={stopDragging}
 			onPointerMove={(e) => {
 				if (isDragging) {
 					e.stopPropagation();
@@ -235,10 +238,6 @@ function PetModel({
 	);
 }
 
-interface SceneHandle {
-	capture: () => string | null;
-}
-
 const Scene = ({
 	base64Data,
 	petBase64Data,
@@ -254,45 +253,48 @@ const Scene = ({
 	const [isPetDragging, setIsPetDragging] = useState(false);
 	const cameraRef = useRef<THREE.PerspectiveCamera>(null);
 	const controlsRef = useRef<React.ElementRef<typeof OrbitControls>>(null);
-	const { gl } = useThree();
+	const { gl, scene } = useThree();
 
 	useImperativeHandle(
 		captureRef,
 		() => ({
 			capture: () => {
-				if (!cameraRef.current) return null;
+				if (!cameraRef.current) {
+					return null;
+				}
 
-				// Get the canvas from the renderer
+				gl.render(scene, cameraRef.current);
+
 				const canvas = gl.domElement;
-				if (!canvas) return null;
+				if (!canvas) {
+					return null;
+				}
 
-				// Get display size and device pixel ratio
 				const displayWidth = canvas.clientWidth;
+				if (!displayWidth) {
+					return null;
+				}
 				const pixelRatio = canvas.width / displayWidth;
 
-				// Viewfinder size in CSS pixels: h-64 w-64 = 256px x 256px
-				const viewfinderSizeCSS = 256;
-				// Convert to actual canvas pixels
-				const viewfinderSize = viewfinderSizeCSS * pixelRatio;
+				const viewfinderSizeCss = 256;
+				const viewfinderSize = viewfinderSizeCss * pixelRatio;
 
-				// Calculate center position in canvas pixels
 				const centerX = canvas.width / 2;
 				const centerY = canvas.height / 2;
 				const halfSize = viewfinderSize / 2;
 
-				// Create a new canvas for the square crop (use CSS size for output)
 				const croppedCanvas = document.createElement("canvas");
-				croppedCanvas.width = viewfinderSizeCSS;
-				croppedCanvas.height = viewfinderSizeCSS;
-				const ctx = croppedCanvas.getContext("2d");
-				if (!ctx) return null;
+				croppedCanvas.width = viewfinderSizeCss;
+				croppedCanvas.height = viewfinderSizeCss;
+				const context = croppedCanvas.getContext("2d");
+				if (!context) {
+					return null;
+				}
 
-				// Draw the source canvas centered in the cropped canvas
-				// Calculate source rectangle (centered on canvas, in canvas pixels)
 				const sourceX = centerX - halfSize;
 				const sourceY = centerY - halfSize;
 
-				ctx.drawImage(
+				context.drawImage(
 					canvas,
 					sourceX,
 					sourceY,
@@ -300,15 +302,21 @@ const Scene = ({
 					viewfinderSize,
 					0,
 					0,
-					viewfinderSizeCSS,
-					viewfinderSizeCSS,
+					viewfinderSizeCss,
+					viewfinderSizeCss,
 				);
 
-				// Return the cropped square image
 				return croppedCanvas.toDataURL("image/png");
 			},
 		}),
-		[gl],
+		[gl, scene],
+	);
+
+	const handlePetPositionCommit = useCallback(
+		(nextPosition: [number, number, number]) => {
+			setPetPosition(nextPosition);
+		},
+		[],
 	);
 
 	return (
@@ -319,17 +327,11 @@ const Scene = ({
 				position={[0, 0, 5]}
 				fov={50}
 			/>
-			{/* Ambient light for base illumination */}
 			<ambientLight intensity={0.8} />
-			{/* Hemisphere light for natural sky/ground lighting */}
 			<hemisphereLight intensity={0.6} />
-			{/* Main key light from front-right */}
 			<directionalLight position={[5, 5, 5]} intensity={1.2} />
-			{/* Fill light from left */}
 			<directionalLight position={[-5, 3, 3]} intensity={0.6} />
-			{/* Rim light from behind */}
 			<directionalLight position={[0, 5, -5]} intensity={0.4} />
-			{/* Top light for additional detail */}
 			<directionalLight position={[0, 10, 0]} intensity={0.5} />
 			<OrbitControls
 				ref={controlsRef}
@@ -345,14 +347,14 @@ const Scene = ({
 				}}
 			/>
 			<Model base64Data={base64Data} />
-			{petBase64Data && (
+			{petBase64Data ? (
 				<PetModel
 					base64Data={petBase64Data}
 					position={petPosition}
-					onPositionChange={setPetPosition}
+					onPositionCommit={handlePetPositionCommit}
 					onDragChange={setIsPetDragging}
 				/>
-			)}
+			) : null}
 		</>
 	);
 };
@@ -368,32 +370,62 @@ export default function HeadshotSelector({
 	const [error, setError] = useState<string | null>(null);
 	const [isCapturing, setIsCapturing] = useState(false);
 	const captureRef = useRef<SceneHandle>(null);
+	const activeRequestRef = useRef(0);
+	const captureAnimationFrameRef = useRef<number | null>(null);
 
 	useEffect(() => {
-		getModel({ username })
+		const requestId = activeRequestRef.current + 1;
+		activeRequestRef.current = requestId;
+		setLoading(true);
+		setError(null);
+		setModelData(null);
+		setPetModelData(null);
+
+		void getModel({ username })
 			.then((data) => {
+				if (activeRequestRef.current !== requestId) {
+					return;
+				}
+
+				if (!data.playerModelBase64) {
+					setError("No player model found for that username");
+					setLoading(false);
+					return;
+				}
+
 				setModelData(data.playerModelBase64);
 				setPetModelData(data.petModelBase64 || null);
 				setLoading(false);
 			})
-			.catch((err) => {
-				setError(err.message || "Failed to load model");
+			.catch((modelError) => {
+				if (activeRequestRef.current !== requestId) {
+					return;
+				}
+				setError(modelError instanceof Error ? modelError.message : "Failed to load model");
 				setLoading(false);
 			});
 	}, [username, getModel]);
 
-	const handleCapture = () => {
-		// Hide overlay temporarily for clean screenshot
-		setIsCapturing(true);
-
-		// Wait for the DOM to update and canvas to render without overlay
-		setTimeout(() => {
-			const imageData = captureRef.current?.capture();
-			setIsCapturing(false);
-			if (imageData) {
-				onComplete(imageData);
+	useEffect(() => {
+		return () => {
+			if (captureAnimationFrameRef.current !== null) {
+				cancelAnimationFrame(captureAnimationFrameRef.current);
 			}
-		}, 50);
+		};
+	}, []);
+
+	const handleCapture = () => {
+		setIsCapturing(true);
+		captureAnimationFrameRef.current = requestAnimationFrame(() => {
+			captureAnimationFrameRef.current = requestAnimationFrame(() => {
+				const imageData = captureRef.current?.capture();
+				setIsCapturing(false);
+				captureAnimationFrameRef.current = null;
+				if (imageData) {
+					onComplete(imageData);
+				}
+			});
+		});
 	};
 
 	if (loading) {
@@ -425,7 +457,7 @@ export default function HeadshotSelector({
 	return (
 		<div className="relative w-full">
 			<div className="relative h-[600px] w-full overflow-hidden rounded-lg border bg-black">
-				<Canvas gl={{ preserveDrawingBuffer: true }} className="h-full w-full">
+				<Canvas className="h-full w-full">
 					<Suspense fallback={null}>
 						<Scene
 							base64Data={modelData}
@@ -435,14 +467,11 @@ export default function HeadshotSelector({
 					</Suspense>
 				</Canvas>
 
-				{/* Viewfinder overlay */}
 				<div
 					className={`pointer-events-none absolute inset-0 flex items-center justify-center ${isCapturing ? "hidden" : ""}`}
 				>
 					<div className="relative">
-						{/* Viewfinder frame */}
 						<div className="h-64 w-64 rounded-full border-4 border-white shadow-[0_0_0_9999px_rgba(0,0,0,0.5)]" />
-						{/* Corner indicators */}
 						<div className="-left-2 -top-2 absolute h-6 w-6 border-white border-t-2 border-l-2" />
 						<div className="-right-2 -top-2 absolute h-6 w-6 border-white border-t-2 border-r-2" />
 						<div className="-bottom-2 -left-2 absolute h-6 w-6 border-white border-b-2 border-l-2" />
@@ -450,7 +479,6 @@ export default function HeadshotSelector({
 					</div>
 				</div>
 
-				{/* Instructions */}
 				<div
 					className={`-translate-x-1/2 absolute bottom-4 left-1/2 rounded-lg bg-black/70 px-4 py-2 text-sm text-white ${isCapturing ? "hidden" : ""}`}
 				>
@@ -459,7 +487,6 @@ export default function HeadshotSelector({
 				</div>
 			</div>
 
-			{/* Capture button */}
 			<div className="mt-4 flex justify-center">
 				<Button onClick={handleCapture} size="lg">
 					Capture Headshot

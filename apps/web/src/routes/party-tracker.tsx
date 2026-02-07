@@ -1,7 +1,3 @@
-import {
-	type MemberState,
-	PartyTracker,
-} from "@GroupScape/runelite-party-client";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -13,6 +9,7 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import type { MemberState } from "@GroupScape/runelite-party-client";
 
 export const Route = createFileRoute("/party-tracker")({
 	beforeLoad: () => {
@@ -28,8 +25,23 @@ interface MemberDisplay {
 	state: MemberState;
 }
 
+type PartyTrackerClient = {
+	setCallbacks: (callbacks: {
+		onConnect: () => void;
+		onDisconnect: (event?: { wasClean?: boolean; code?: number }) => void;
+		onError: (error: Error) => void;
+		onMemberUpdate: (memberId: bigint, state: MemberState) => void;
+		onMemberRemoved: (memberId: bigint) => void;
+	}) => void;
+	connect: () => Promise<unknown>;
+	disconnect: () => void;
+	joinParty: (passphrase: string) => Promise<unknown>;
+	leaveParty: () => Promise<unknown>;
+	sendUserSync: () => Promise<unknown>;
+};
+
 function PartyTrackerTest() {
-	const trackerRef = useRef<PartyTracker | null>(null);
+	const trackerRef = useRef<PartyTrackerClient | null>(null);
 	const [members, setMembers] = useState<Map<string, MemberDisplay>>(new Map());
 	const [isConnected, setIsConnected] = useState(false);
 	const [passphrase, setPassphrase] = useState("");
@@ -38,57 +50,73 @@ function PartyTrackerTest() {
 		useState<string>("Disconnected");
 
 	useEffect(() => {
-		// Create party tracker instance on mount
-		const tracker = new PartyTracker();
-		trackerRef.current = tracker;
+		let mounted = true;
+		let tracker: PartyTrackerClient | null = null;
+		setConnectionStatus("Connecting...");
 
-		// Set up callbacks
-		tracker.setCallbacks({
-			onConnect: () => {
-				setIsConnected(true);
-				setConnectionStatus("Connected");
-				setError(null);
-			},
-			onDisconnect: (event) => {
-				setIsConnected(false);
-				setConnectionStatus(
-					event?.wasClean
-						? "Disconnected"
-						: `Disconnected (code: ${event?.code})`,
-				);
-				setMembers(new Map());
-			},
-			onError: (err) => {
-				setError(err.message);
+		void import("@GroupScape/runelite-party-client")
+			.then(({ PartyTracker }) => {
+				if (!mounted) {
+					return;
+				}
+
+				const trackerInstance: PartyTrackerClient = new PartyTracker();
+				tracker = trackerInstance;
+				trackerRef.current = trackerInstance;
+
+				trackerInstance.setCallbacks({
+					onConnect: () => {
+						setIsConnected(true);
+						setConnectionStatus("Connected");
+						setError(null);
+					},
+					onDisconnect: (event) => {
+						setIsConnected(false);
+						setConnectionStatus(
+							event?.wasClean
+								? "Disconnected"
+								: `Disconnected (code: ${event?.code})`,
+						);
+						setMembers(new Map());
+					},
+					onError: (err) => {
+						setError(err.message);
+						setConnectionStatus("Error");
+					},
+					onMemberUpdate: (memberId, state) => {
+						setMembers((prev) => {
+							const newMap = new Map(prev);
+							newMap.set(memberId.toString(), {
+								id: memberId.toString(),
+								state,
+							});
+							return newMap;
+						});
+					},
+					onMemberRemoved: (memberId) => {
+						setMembers((prev) => {
+							const newMap = new Map(prev);
+							newMap.delete(memberId.toString());
+							return newMap;
+						});
+					},
+				});
+
+				return trackerInstance.connect();
+			})
+			.catch((err) => {
+				if (!mounted) {
+					return;
+				}
+				setError(err instanceof Error ? err.message : "Failed to connect");
 				setConnectionStatus("Error");
-			},
-			onMemberUpdate: (memberId, state) => {
-				setMembers((prev) => {
-					const newMap = new Map(prev);
-					newMap.set(memberId.toString(), {
-						id: memberId.toString(),
-						state,
-					});
-					return newMap;
-				});
-			},
-			onMemberRemoved: (memberId) => {
-				setMembers((prev) => {
-					const newMap = new Map(prev);
-					newMap.delete(memberId.toString());
-					return newMap;
-				});
-			},
-		});
+				setIsConnected(false);
+			});
 
-		// Connect on mount
-		tracker.connect().catch((err) => {
-			setError(err.message || "Failed to connect");
-		});
-
-		// Cleanup on unmount
 		return () => {
-			tracker.disconnect();
+			mounted = false;
+			tracker?.disconnect();
+			trackerRef.current = null;
 		};
 	}, []);
 

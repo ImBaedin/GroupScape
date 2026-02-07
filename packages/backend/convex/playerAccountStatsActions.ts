@@ -85,6 +85,8 @@ type AccountStatsSummary = {
 	isStale: boolean;
 };
 
+const STALE_REFRESH_BATCH_SIZE = 3;
+
 export const listForUser = action({
 	args: {},
 	returns: v.array(accountStatsSummaryValidator),
@@ -99,26 +101,38 @@ export const listForUser = action({
 			return initial;
 		}
 
-		for (const entry of staleAccounts) {
-			try {
-				const context = await ctx.runQuery(
-					anyApi.playerAccountStats.getRefreshContext,
-					{ accountId: entry.accountId },
-				);
-				const now = Date.now();
-				const stats = await getStatsByGamemode(context.account.username);
-				const summary = buildStatsSummary(stats);
-				const statsJson = JSON.stringify(stats);
+		for (
+			let batchStart = 0;
+			batchStart < staleAccounts.length;
+			batchStart += STALE_REFRESH_BATCH_SIZE
+		) {
+			const batch = staleAccounts.slice(
+				batchStart,
+				batchStart + STALE_REFRESH_BATCH_SIZE,
+			);
+			await Promise.all(
+				batch.map(async (entry) => {
+					try {
+						const context = await ctx.runQuery(
+							anyApi.playerAccountStats.getRefreshContext,
+							{ accountId: entry.accountId },
+						);
+						const now = Date.now();
+						const stats = await getStatsByGamemode(context.account.username);
+						const summary = buildStatsSummary(stats);
+						const statsJson = JSON.stringify(stats);
 
-				await ctx.runMutation(anyApi.playerAccountStats.upsertStats, {
-					accountId: context.account._id,
-					statsJson,
-					summary,
-					lastUpdated: now,
-				});
-			} catch {
-				// Ignore refresh failures; stale data remains.
-			}
+						await ctx.runMutation(anyApi.playerAccountStats.upsertStats, {
+							accountId: context.account._id,
+							statsJson,
+							summary,
+							lastUpdated: now,
+						});
+					} catch {
+						// Ignore refresh failures; stale data remains.
+					}
+				}),
+			);
 		}
 
 		return await ctx.runQuery(anyApi.playerAccountStats.listForUser, {});
